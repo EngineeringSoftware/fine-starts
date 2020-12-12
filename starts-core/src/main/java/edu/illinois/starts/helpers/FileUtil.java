@@ -4,6 +4,8 @@
 
 package edu.illinois.starts.helpers;
 
+import edu.illinois.starts.util.Macros;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -31,8 +33,8 @@ public class FileUtil {
             sb.append(".");
         }
         sb.append("ser");
-        return System.getProperty("user.dir") + "/" + ".starts" + "/" +
-                "sers" + "/" + sb.toString();
+        return System.getProperty("user.dir") + "/" + Macros.STARTS_ROOT_DIR_NAME + "/" +
+                Macros.CHANGE_TYPES_DIR_NAME + "/" + sb.toString();
     }
 
     /**
