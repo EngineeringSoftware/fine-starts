@@ -9,7 +9,7 @@
   <parent>
     <groupId>edu.illinois</groupId>
     <artifactId>starts</artifactId>
-    <version>1.5-SNAPSHOT</version>
+    <version>1.6-SNAPSHOT</version>
   </parent>
 
   <groupId>edu.illinois</groupId>
@@ -29,7 +29,7 @@
     <dependency>
       <groupId>org.ekstazi</groupId>
       <artifactId>org.ekstazi.core</artifactId>
-      <version>4.6.2</version>
+      <version>5.3.1</version>
     </dependency>
   </dependencies>
   <build>
@@ -42,6 +42,14 @@
           <archive>
             <manifestFile>META-INF/MANIFEST.MF</manifestFile>
           </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>8</source>
+          <target>8</target>
         </configuration>
       </plugin>
     </plugins>

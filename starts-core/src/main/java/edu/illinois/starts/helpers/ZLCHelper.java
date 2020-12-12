@@ -4,26 +4,27 @@
 
 package edu.illinois.starts.helpers;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
-
 import edu.illinois.starts.constants.StartsConstants;
 import edu.illinois.starts.data.ZLCData;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
 import edu.illinois.starts.util.Pair;
+import edu.illinois.starts.helpers.FileUtil;
+
 import org.ekstazi.util.Types;
+import org.ekstazi.changelevel.ChangeTypes;
+import org.ekstazi.changelevel.FineTunedBytecodeCleaner;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Utility methods for dealing with the .zlc format.
@@ -123,10 +124,74 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
+    public static boolean finertsChanged(String urlExternalForm){
+        String fileName = FileUtil.urlToSerFilePath(urlExternalForm);
+        ChangeTypes curChangeTypes = new ChangeTypes();
+        try {
+            ChangeTypes preChangeTypes = ChangeTypes.fromFile(fileName);
+            curChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                    new File(urlExternalForm.substring(urlExternalForm.indexOf("/")))));
+            if (preChangeTypes != null && preChangeTypes.equals(curChangeTypes)) {
+                return false;
+            }
+        } catch (ClassNotFoundException | IOException e) {
+        }
+        ChangeTypes.toFile(fileName, curChangeTypes);
+        return true;
+    }
+
+    public static List<String> listFiles(String dir) {
+        List<String> res = new ArrayList<>();
+        try {
+            List<Path> pathList =  Files.find(Paths.get(dir), 999, (p, bfa) -> bfa.isRegularFile())
+                    .collect(Collectors.toList());
+            for(Path filePath : pathList){
+                if(!filePath.getFileName().toString().endsWith("class")){
+                    continue;
+                }
+                String curClassPath = filePath.getParent().toString()+"/"+filePath.getFileName().toString();
+                res.add(curClassPath);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
     public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
         if (!zlc.exists()) {
+            //TODO: first run
+            System.out.println("zlc does not exist");
+            try{
+                List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
+                for (String classFilePath : listOfFiles) {
+                    System.out.println("class file: " + classFilePath);
+                    File classFile = new File(classFilePath);
+                    if (classFile.isFile()) {
+                        ChangeTypes curChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                classFile));
+                        String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                        ChangeTypes.toFile(fileName, curChangeTypes);
+                    }
+                }
+                listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
+                for (String classFilePath : listOfFiles) {
+                    File classFile = new File(classFilePath);
+                    if (classFile.isFile()) {
+                        System.out.println("test class file: " + classFilePath);
+                        ChangeTypes curChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                classFile));
+                        String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                        ChangeTypes.toFile(fileName, curChangeTypes);
+                    }
+                }
+
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+
             LOGGER.log(Level.FINEST, NOEXISTING_ZLCFILE_FIRST_RUN);
             return null;
         }
@@ -156,8 +221,12 @@ public class ZLCHelper implements StartsConstants {
                 URL url = new URL(stringURL);
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
                 if (!newCheckSum.equals(oldCheckSum)) {
-                    affected.addAll(tests);
-                    changedClasses.add(stringURL);
+                    //TODO: add checking ChangeType here
+                    boolean finertsChanged = finertsChanged(stringURL);
+                    if (finertsChanged) {
+                        affected.addAll(tests);
+                        changedClasses.add(stringURL);
+                    }
                 }
                 if (newCheckSum.equals("-1")) {
                     // a class was deleted or auto-generated, no need to track it in zlc
@@ -189,6 +258,7 @@ public class ZLCHelper implements StartsConstants {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
         if (!zlc.exists()) {
+
             LOGGER.log(Level.FINEST, NOEXISTING_ZLCFILE_FIRST_RUN);
             return existingClasses;
         }
