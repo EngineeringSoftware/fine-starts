@@ -8,6 +8,7 @@ import edu.illinois.starts.constants.StartsConstants;
 import edu.illinois.starts.data.ZLCData;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
+import edu.illinois.starts.util.Macros;
 import edu.illinois.starts.util.Pair;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
@@ -159,35 +160,43 @@ public class ZLCHelper implements StartsConstants {
 
     public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes) {
         long start = System.currentTimeMillis();
+        boolean fineRTSMode = false;
+        File startsConfig = new File(Macros.STARTRC);
+        if (startsConfig.exists()){
+            fineRTSMode = true;
+        }
         File zlc = new File(artifactsDir, zlcFile);
+
         if (!zlc.exists()) {
             //TODO: first run
-            try{
-                List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
-                for (String classFilePath : listOfFiles) {
+            if (fineRTSMode) {
+                try {
+                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
+                    for (String classFilePath : listOfFiles) {
 //                    System.out.println("class file: " + classFilePath);
-                    File classFile = new File(classFilePath);
-                    if (classFile.isFile()) {
-                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                classFile));
-                        String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-                        StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        File classFile = new File(classFilePath);
+                        if (classFile.isFile()) {
+                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    classFile));
+                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        }
                     }
-                }
-                listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
-                for (String classFilePath : listOfFiles) {
-                    File classFile = new File(classFilePath);
-                    if (classFile.isFile()) {
+                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
+                    for (String classFilePath : listOfFiles) {
+                        File classFile = new File(classFilePath);
+                        if (classFile.isFile()) {
 //                        System.out.println("test class file: " + classFilePath);
-                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                classFile));
-                        String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-                        StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    classFile));
+                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        }
                     }
-                }
 
-            }catch (IOException e){
-                e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
 
             LOGGER.log(Level.FINEST, NOEXISTING_ZLCFILE_FIRST_RUN);
@@ -220,8 +229,13 @@ public class ZLCHelper implements StartsConstants {
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
                 if (!newCheckSum.equals(oldCheckSum)) {
                     //TODO: add checking ChangeType here
-                    boolean finertsChanged = finertsChanged(stringURL);
-                    if (finertsChanged) {
+                    if (fineRTSMode) {
+                        boolean finertsChanged = finertsChanged(stringURL);
+                        if (finertsChanged) {
+                            affected.addAll(tests);
+                            changedClasses.add(stringURL);
+                        }
+                    }else{
                         affected.addAll(tests);
                         changedClasses.add(stringURL);
                     }
