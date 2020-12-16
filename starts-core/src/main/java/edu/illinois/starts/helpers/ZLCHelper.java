@@ -35,6 +35,7 @@ public class ZLCHelper implements StartsConstants {
     private static final Logger LOGGER = Logger.getGlobal();
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
+//    private static List<String> allTests;
 
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
@@ -88,6 +89,17 @@ public class ZLCHelper implements StartsConstants {
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINE, "[PROFILE] updateForNextRun(updateZLCFile): " + Writer.millsToSeconds(end - start));
     }
+
+//    public void updateZLCFile(Map<String, Set<String>> testDeps, ClassLoader loader,
+//                              String artifactsDir, Set<String> unreached, boolean useThirdParty, List<String> allTests) {
+//        // TODO: Optimize this by only recomputing the checksum+tests for changed classes and newly added tests
+//        this.allTests = allTests;
+//        long start = System.currentTimeMillis();
+//        List<ZLCData> zlc = createZLCData(testDeps, loader, useThirdParty);
+//        Writer.writeToFile(zlc, zlcFile, artifactsDir);
+//        long end = System.currentTimeMillis();
+//        LOGGER.log(Level.FINE, "[PROFILE] updateForNextRun(updateZLCFile): " + Writer.millsToSeconds(end - start));
+//    }
 
     public static List<ZLCData> createZLCData(Map<String, Set<String>> testDeps, ClassLoader loader, boolean useJars) {
         long start = System.currentTimeMillis();
@@ -158,18 +170,13 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn) {
         long start = System.currentTimeMillis();
-        boolean fineRTSMode = false;
-        File startsConfig = new File(Macros.STARTRC);
-        if (startsConfig.exists()){
-            fineRTSMode = true;
-        }
         File zlc = new File(artifactsDir, zlcFile);
 
         if (!zlc.exists()) {
             //TODO: first run
-            if (fineRTSMode) {
+            if (fineRTSOn) {
                 try {
                     List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
                     for (String classFilePath : listOfFiles) {
@@ -229,7 +236,7 @@ public class ZLCHelper implements StartsConstants {
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
                 if (!newCheckSum.equals(oldCheckSum)) {
                     //TODO: add checking ChangeType here
-                    if (fineRTSMode) {
+                    if (fineRTSOn) {
                         boolean finertsChanged = finertsChanged(stringURL);
                         if (finertsChanged) {
                             affected.addAll(tests);

@@ -42,6 +42,9 @@ public class DiffMojo extends BaseMojo implements StartsConstants {
     @Parameter(property = "cleanBytes", defaultValue = TRUE)
     protected boolean cleanBytes;
 
+    @Parameter(property = "fineRTS", defaultValue = FALSE)
+    protected boolean fineRTSOn;
+
     /**
      * Set this to "true" to update test dependencies on disk. The default value of "false"
      * is useful for "dry runs" where one may want to see the diff without updating
@@ -74,7 +77,7 @@ public class DiffMojo extends BaseMojo implements StartsConstants {
         Pair<Set<String>, Set<String>> data = null;
         if (depFormat == DependencyFormat.ZLC) {
             ZLCHelper zlcHelper = new ZLCHelper();
-            data = zlcHelper.getChangedData(getArtifactsDir(), cleanBytes);
+            data = zlcHelper.getChangedData(getArtifactsDir(), cleanBytes, fineRTSOn);
         } else if (depFormat == DependencyFormat.CLZ) {
             data = EkstaziHelper.getNonAffectedTests(getArtifactsDir());
         }
