@@ -112,6 +112,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         final StartsChangeTypes other = (StartsChangeTypes) obj;
 
         if (hierarchyGraph == null){
+            // todo: multi module projects
             getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/classes"));
             getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/test-classes"));
         }
@@ -160,13 +161,25 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     }
 
     public HashSet<String> listTestClasses(){
+        // todo: STARTS does not use test class name as file name
         HashSet<String> testClasses = new HashSet<>();
-        File folder = new File(System.getProperty("user.dir") + "/" +Macros.STARTS_ROOT_DIR_NAME);
-        for (final File fileEntry : folder.listFiles()) {
-            String fileName = fileEntry.getName();
-            if (fileEntry.isFile() && fileName.endsWith(".clz")) {
-                testClasses.add(fileName.substring(0, fileName.length()-4).replace(".", "/"));
+        File allTests = new File(System.getProperty("user.dir") + "/" +Macros.STARTS_ROOT_DIR_NAME +  "/" + "deps.zlc");
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(allTests));
+            String st;
+            while ((st = br.readLine()) != null) {
+                String[] currentTests = st.split(" ")[2].split(",");
+                for (String currentTest : currentTests){
+                    testClasses.add(currentTest.replace(".", "/"));
+                }
+//                testClasses.addAll(Arrays.asList(currentTests));
             }
+        } catch (FileNotFoundException e) {
+            System.out.println("all-tests not found");
+            e.printStackTrace();
+        } catch (IOException e){
+            System.out.println("fail to read all-tests");
+            e.printStackTrace();
         }
         return testClasses;
     }
@@ -268,7 +281,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             if (testClasses.contains(this.curClass)){
                 return true;
             }
-            return false;
         }
 
         return true;
