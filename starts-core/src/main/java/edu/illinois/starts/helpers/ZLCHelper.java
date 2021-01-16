@@ -178,28 +178,39 @@ public class ZLCHelper implements StartsConstants {
             //TODO: first run
             if (fineRTSOn) {
                 try {
-                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
-                    for (String classFilePath : listOfFiles) {
-//                    System.out.println("class file: " + classFilePath);
-                        File classFile = new File(classFilePath);
-                        if (classFile.isFile()) {
-                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                    classFile));
+                    // todo: save default ChangeTypes
+                    List<Path> classPaths = Files.walk(Paths.get(""))
+                            .filter(Files::isRegularFile)
+                            .filter(f -> f.toString().endsWith(".class"))
+                            .collect(Collectors.toList());
+                    for (Path filePath : classPaths){
+                        File classFile = filePath.toFile();
+                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(classFile));
                             String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                        }
                     }
-                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
-                    for (String classFilePath : listOfFiles) {
-                        File classFile = new File(classFilePath);
-                        if (classFile.isFile()) {
-//                        System.out.println("test class file: " + classFilePath);
-                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                    classFile));
-                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                        }
-                    }
+
+//                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
+//                    for (String classFilePath : listOfFiles) {
+////                    System.out.println("class file: " + classFilePath);
+//                        File classFile = new File(classFilePath);
+//                        if (classFile.isFile()) {
+//                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+//                                    classFile));
+//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+//                        }
+//                    }
+//                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
+//                    for (String classFilePath : listOfFiles) {
+//                        File classFile = new File(classFilePath);
+//                        if (classFile.isFile()) {
+//                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+//                                    classFile));
+//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+//                        }
+//                    }
 
                 } catch (IOException e) {
                     e.printStackTrace();
