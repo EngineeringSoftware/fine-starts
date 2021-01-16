@@ -19,5 +19,5 @@ public class Macros {
     static int numSHA = 1;
     static String SKIPS = " -Djacoco.skip -Dcheckstyle.skip -Drat.skip -Denforcer.skip -Danimal.sniffer.skip " +
             "-Dmaven.javadoc.skip -Dfindbugs.skip -Dwarbucks.skip -Dmodernizer.skip -Dimpsort.skip -Dpmd.skip -Dxjc.skip";
-
+    public static String PROJECT_PACKAGE = "edu/illinois/starts/smethods/";
 }

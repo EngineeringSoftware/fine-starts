@@ -12,7 +12,9 @@ import edu.illinois.starts.util.Macros;
 import edu.illinois.starts.util.Pair;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
+import static edu.illinois.starts.smethods.MethodLevelStaticDepsBuilder.*;
 
+import org.ekstazi.asm.ClassReader;
 import org.ekstazi.util.Types;
 
 import java.io.File;
@@ -36,7 +38,8 @@ public class ZLCHelper implements StartsConstants {
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
 //    private static List<String> allTests;
-
+    private static Map<String, Set<String>> test2methods;
+    private static Set<String> testClasses = new HashSet<>();
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -136,22 +139,6 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
-    public static boolean finertsChanged(String urlExternalForm){
-        String fileName = FileUtil.urlToSerFilePath(urlExternalForm);
-        StartsChangeTypes curStartsChangeTypes = new StartsChangeTypes();
-        try {
-            StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-            curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                    new File(urlExternalForm.substring(urlExternalForm.indexOf("/")))));
-            if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
-                return false;
-            }
-        } catch (ClassNotFoundException | IOException e) {
-        }
-        StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-        return true;
-    }
-
     public static List<String> listFiles(String dir) {
         List<String> res = new ArrayList<>();
         try {
@@ -179,38 +166,38 @@ public class ZLCHelper implements StartsConstants {
             if (fineRTSOn) {
                 try {
                     // todo: save default ChangeTypes
-                    List<Path> classPaths = Files.walk(Paths.get(""))
-                            .filter(Files::isRegularFile)
-                            .filter(f -> f.toString().endsWith(".class"))
-                            .collect(Collectors.toList());
-                    for (Path filePath : classPaths){
-                        File classFile = filePath.toFile();
-                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(classFile));
+//                    List<Path> classPaths = Files.walk(Paths.get(""))
+//                            .filter(Files::isRegularFile)
+//                            .filter(f -> f.toString().endsWith(".class"))
+//                            .collect(Collectors.toList());
+//                    for (Path filePath : classPaths){
+//                        File classFile = filePath.toFile();
+//                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(classFile));
+//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+//                    }
+
+                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
+                    for (String classFilePath : listOfFiles) {
+//                    System.out.println("class file: " + classFilePath);
+                        File classFile = new File(classFilePath);
+                        if (classFile.isFile()) {
+                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    classFile));
                             String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        }
                     }
-
-//                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
-//                    for (String classFilePath : listOfFiles) {
-////                    System.out.println("class file: " + classFilePath);
-//                        File classFile = new File(classFilePath);
-//                        if (classFile.isFile()) {
-//                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-//                                    classFile));
-//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-//                        }
-//                    }
-//                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
-//                    for (String classFilePath : listOfFiles) {
-//                        File classFile = new File(classFilePath);
-//                        if (classFile.isFile()) {
-//                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-//                                    classFile));
-//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-//                        }
-//                    }
+                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
+                    for (String classFilePath : listOfFiles) {
+                        File classFile = new File(classFilePath);
+                        if (classFile.isFile()) {
+                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    classFile));
+                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        }
+                    }
 
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -248,10 +235,53 @@ public class ZLCHelper implements StartsConstants {
                 if (!newCheckSum.equals(oldCheckSum)) {
                     //TODO: add checking ChangeType here
                     if (fineRTSOn) {
-                        boolean finertsChanged = finertsChanged(stringURL);
+                        boolean finertsChanged = true;
+                        String fileName = FileUtil.urlToSerFilePath(stringURL);
+                        StartsChangeTypes curStartsChangeTypes = new StartsChangeTypes();
+                        try {
+                            StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
+                            curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    new File(stringURL.substring(stringURL.indexOf("/")))));
+                            if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
+                                finertsChanged =  false;
+                            }
+                        } catch (ClassNotFoundException | IOException e) {
+                            throw new RuntimeException(e);
+                        }
+
                         if (finertsChanged) {
-                            affected.addAll(tests);
-                            changedClasses.add(stringURL);
+                            if (test2methods == null){
+                                List<ClassReader> classReaderList = getClassReaders(".");
+                                // find the methods that each method calls
+                                findMethodsinvoked(classReaderList);
+                                // suppose that test classes have Test in their class name
+                                for (String method : methodName2MethodNames.keySet()){
+                                    String className = method.split("#")[0];
+                                    if (className.contains("Test")){
+                                        testClasses.add(className);
+                                    }
+                                }
+                                test2methods = getDeps(methodName2MethodNames, testClasses);
+                            }
+                            Set<String> changedMethods = getChangedMethod(stringURL, testClasses);
+                            Set<String> affectedTestSet = new HashSet<>();
+                            for (String test : test2methods.keySet()) {
+                                for (String changedMethod : changedMethods) {
+                                    if (test2methods.get(test).contains(changedMethod)) {
+                                        affectedTestSet.add(test);
+                                        break;
+                                    }
+                                }
+                            }
+                            affectedTestSet = affectedTestSet.stream().map(s -> s.replace("/", ".")).collect(Collectors.toSet());
+                            for(String test : tests) {
+                                if (affectedTestSet.contains(test)) {
+                                    affected.add(test);
+                                }
+                                if (affected.size()>0)
+                                    changedClasses.add(stringURL);
+                            }
+                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                         }
                     }else{
                         affected.addAll(tests);
@@ -277,6 +307,70 @@ public class ZLCHelper implements StartsConstants {
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
         return new Pair<>(nonAffected, changedClasses);
+    }
+
+    private static Set<String> getChangedMethod(String urlExternalForm, Set<String> allTests){
+        Set<String> res = new HashSet<>();
+
+        try {
+            String fileName = FileUtil.urlToSerFilePath(urlExternalForm);
+            File preStartsChangeTypeFile = new File(urlExternalForm.substring(urlExternalForm.indexOf("/")));
+            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(preStartsChangeTypeFile));
+            if (!preStartsChangeTypeFile.exists()){
+                // does not exist before
+                Set<String> methods = new HashSet<>();
+                curStartsChangeTypes.methodMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
+                        m.substring(0, m.indexOf(")")+1)));
+                curStartsChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
+                        m.substring(0, m.indexOf(")")+1)));
+                res.addAll(methods);
+//                    ChangeTypes.toFile(changeTypePath, curChangeTypes);
+            }else {
+                StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
+
+                if (!preStartsChangeTypes.equals(curStartsChangeTypes)) {
+//                        ChangeTypes.toFile(changeTypePath, curChangeTypes);
+                    res.addAll(getChangedMethodsPerChangeType(preStartsChangeTypes.methodMap,
+                            curStartsChangeTypes.methodMap, curStartsChangeTypes.curClass, allTests));
+                    res.addAll(getChangedMethodsPerChangeType(preStartsChangeTypes.constructorsMap,
+                            curStartsChangeTypes.constructorsMap, curStartsChangeTypes.curClass, allTests));
+                }
+            }
+        } catch (ClassNotFoundException | IOException e) {
+            throw new RuntimeException(e);
+        }
+        return res;
+    }
+
+    static Set<String> getChangedMethodsPerChangeType(TreeMap<String, String> oldMethods, TreeMap<String, String> newMethods,
+                                                      String className, Set<String> allTests){
+        Set<String> res = new HashSet<>();
+        //TODO: consider adding test class
+        Set<String> methodSig = new HashSet<>(oldMethods.keySet());
+        methodSig.addAll(newMethods.keySet());
+        for (String sig : methodSig){
+            if (oldMethods.containsKey(sig) && newMethods.containsKey(sig)){
+                if (oldMethods.get(sig).equals(newMethods.get(sig))) {
+                    oldMethods.remove(sig);
+                    newMethods.remove(sig);
+                }else{
+                    res.add(className + "#" + sig.substring(0, sig.indexOf(")")+1));
+                }
+            } else if (oldMethods.containsKey(sig) && newMethods.containsValue(oldMethods.get(sig))){
+                newMethods.values().remove(oldMethods.get(sig));
+                oldMethods.remove(sig);
+            } else if (newMethods.containsKey(sig) && oldMethods.containsValue(newMethods.get(sig))){
+                oldMethods.values().remove(newMethods.get(sig));
+                newMethods.remove(sig);
+            }
+        }
+        // className is Test
+        if (allTests.contains(className)){
+            for (String sig : newMethods.keySet()){
+                res.add(className + "#" + sig.substring(0, sig.indexOf(")")+1));
+            }
+        }
+        return res;
     }
 
     private static Set<String> fromCSV(String tests) {
