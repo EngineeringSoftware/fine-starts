@@ -241,10 +241,14 @@ public class ZLCHelper implements StartsConstants {
                         StartsChangeTypes curStartsChangeTypes;
                         try {
                             StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-                            curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                    new File(stringURL.substring(stringURL.indexOf("/")))));
-                            if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
-                                finertsChanged =  false;
+                            File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
+                            if (curClassFile.exists()) {
+                                curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                        curClassFile));
+                                if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
+                                    finertsChanged = false;
+                                }
+                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }
                         } catch (ClassNotFoundException | IOException e) {
                             throw new RuntimeException(e);
@@ -266,16 +270,6 @@ public class ZLCHelper implements StartsConstants {
                                 affectedTestSet = affectedTestSet.stream().map(s -> s.replace("/", ".")).collect(Collectors.toSet());
 //                                test2methods = getDeps(methodName2MethodNames, testClasses);
                             }
-//                            Set<String> changedMethods = getChangedMethod(stringURL, testClasses);
-//                            Set<String> affectedTestSet = new HashSet<>();
-//                            for (String test : test2methods.keySet()) {
-//                                for (String changedMethod : changedMethods) {
-//                                    if (test2methods.get(test).contains(changedMethod)) {
-//                                        affectedTestSet.add(test);
-//                                        break;
-//                                    }
-//                                }
-//                            }
 
                             for(String test : tests) {
                                 if (affectedTestSet.contains(test)) {
@@ -285,7 +279,6 @@ public class ZLCHelper implements StartsConstants {
                             if (affected.size() > 0){
                                 changedClasses.add(stringURL);
                             }
-                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                         }
                     }else{
                         affected.addAll(tests);
