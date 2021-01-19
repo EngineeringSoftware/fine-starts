@@ -4,6 +4,7 @@ import org.ekstazi.asm.ClassReader;
 
 import edu.illinois.starts.helpers.FileUtil;
 import edu.illinois.starts.util.Macros;
+import org.ekstazi.changelevel.ChangeTypes;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -72,11 +73,20 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
 
     public static StartsChangeTypes fromFile(String fileName) throws IOException,ClassNotFoundException{
         StartsChangeTypes c = null;
-        FileInputStream fileIn = new FileInputStream(fileName);
-        ObjectInputStream in = new ObjectInputStream(fileIn);
-        c= (StartsChangeTypes) in.readObject();
-        in.close();
-        fileIn.close();
+        FileInputStream fileIn = null;
+        if (!new File(fileName).exists()) {
+            return null;
+        }
+        try {
+            fileIn = new FileInputStream(fileName);
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            c= (StartsChangeTypes) in.readObject();
+            in.close();
+            fileIn.close();
+        } catch (ClassNotFoundException | IOException e) {
+            e.printStackTrace();
+            return c;
+        }
         return c;
     }
 
@@ -85,8 +95,11 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             File file = new File(fileName);
             if (!file.exists()){
                 File dir = new File(file.getParent());
-                dir.mkdirs();
-                file.createNewFile();
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+            }else {
+                file.delete();
             }
             FileOutputStream fileOut =
                     new FileOutputStream(file);
