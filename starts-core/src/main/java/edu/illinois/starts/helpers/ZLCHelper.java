@@ -238,7 +238,7 @@ public class ZLCHelper implements StartsConstants {
                     if (fineRTSOn) {
                         boolean finertsChanged = true;
                         String fileName = FileUtil.urlToSerFilePath(stringURL);
-                        StartsChangeTypes curStartsChangeTypes;
+                        StartsChangeTypes curStartsChangeTypes = null;
                         try {
                             StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
                             File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
@@ -248,7 +248,6 @@ public class ZLCHelper implements StartsConstants {
                                 if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
                                     finertsChanged = false;
                                 }
-                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }
                         } catch (ClassNotFoundException | IOException e) {
                             throw new RuntimeException(e);
@@ -278,6 +277,9 @@ public class ZLCHelper implements StartsConstants {
                             }
                             if (affected.size() > 0){
                                 changedClasses.add(stringURL);
+                            }
+                            if (curStartsChangeTypes!=null) {
+                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }
                         }
                     }else{
