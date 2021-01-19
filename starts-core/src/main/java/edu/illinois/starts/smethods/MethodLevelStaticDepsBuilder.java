@@ -3,11 +3,13 @@ package edu.illinois.starts.smethods;
 import org.ekstazi.asm.ClassReader;
 import edu.illinois.starts.smethods.ClassToMethodsCollectorCV;
 import edu.illinois.starts.smethods.MethodCallCollectorCV;
+import edu.illinois.starts.smethods.ConstantPoolParser;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,6 +26,8 @@ public class MethodLevelStaticDepsBuilder{
     public static Map<String, Set<String>> class2ContainedMethodNames = new HashMap<>();
     // for every method, get the methods it invokes
     public static Map<String, Set<String>> methodName2MethodNames = new HashMap<>();
+    // for every method, get the methods that invoke it (the methods that will be affected by it)
+    public static Map<String, Set<String>> method2usage = new HashMap<>();
     // for every class, find its parents.
     public static Map<String, Set<String>> hierarchy_parents = new HashMap<>();
     // for every class, find its children.
@@ -90,8 +94,9 @@ public class MethodLevelStaticDepsBuilder{
             classReader.accept(visitor, ClassReader.SKIP_DEBUG);
         }
         for (ClassReader classReader : classReaderList){
+            Set<String> classesInConstantPool = ConstantPoolParser.getClassNames(ByteBuffer.wrap(classReader.b));
             //TODO: not keep methodName2MethodNames, hierarchies as fields
-            MethodCallCollectorCV visitor = new MethodCallCollectorCV(methodName2MethodNames, hierarchy_parents, hierarchy_children, class2ContainedMethodNames);
+            MethodCallCollectorCV visitor = new MethodCallCollectorCV(methodName2MethodNames, method2usage, hierarchy_parents, hierarchy_children, class2ContainedMethodNames, classesInConstantPool);
             classReader.accept(visitor, ClassReader.SKIP_DEBUG);
         }
     }

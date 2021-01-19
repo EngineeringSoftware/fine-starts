@@ -8,11 +8,12 @@ import edu.illinois.starts.constants.StartsConstants;
 import edu.illinois.starts.data.ZLCData;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
-import edu.illinois.starts.util.Macros;
 import edu.illinois.starts.util.Pair;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
 import static edu.illinois.starts.smethods.MethodLevelStaticDepsBuilder.*;
+import static edu.illinois.starts.util.Macros.CHANGE_TYPES_DIR_NAME;
+import static edu.illinois.starts.util.Macros.STARTS_ROOT_DIR_NAME;
 
 import org.ekstazi.asm.ClassReader;
 import org.ekstazi.util.Types;
@@ -38,8 +39,8 @@ public class ZLCHelper implements StartsConstants {
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
 //    private static List<String> allTests;
-    private static Map<String, Set<String>> test2methods;
-    private static Set<String> testClasses = new HashSet<>();
+    private static Set<String> affectedTestSet;
+    private static Set<String> allTestClasses = new HashSet<>();
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -237,7 +238,7 @@ public class ZLCHelper implements StartsConstants {
                     if (fineRTSOn) {
                         boolean finertsChanged = true;
                         String fileName = FileUtil.urlToSerFilePath(stringURL);
-                        StartsChangeTypes curStartsChangeTypes = new StartsChangeTypes();
+                        StartsChangeTypes curStartsChangeTypes;
                         try {
                             StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
                             curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
@@ -250,36 +251,39 @@ public class ZLCHelper implements StartsConstants {
                         }
 
                         if (finertsChanged) {
-                            if (test2methods == null){
+                            if (affectedTestSet == null){
                                 List<ClassReader> classReaderList = getClassReaders(".");
                                 // find the methods that each method calls
                                 findMethodsinvoked(classReaderList);
-                                // suppose that test classes have Test in their class name
-                                for (String method : methodName2MethodNames.keySet()){
-                                    String className = method.split("#")[0];
-                                    if (className.contains("Test")){
-                                        testClasses.add(className);
+                                // find all the test classes
+                                for (ClassReader c : classReaderList){
+                                    if (c.getClassName().contains("Test")){
+                                        allTestClasses.add(c.getClassName());
                                     }
                                 }
-                                test2methods = getDeps(methodName2MethodNames, testClasses);
+                                Set<String> changedMethods = getChangedMethods(allTestClasses);
+                                affectedTestSet = getAffectedTests(changedMethods, method2usage, allTestClasses);
+                                affectedTestSet = affectedTestSet.stream().map(s -> s.replace("/", ".")).collect(Collectors.toSet());
+//                                test2methods = getDeps(methodName2MethodNames, testClasses);
                             }
-                            Set<String> changedMethods = getChangedMethod(stringURL, testClasses);
-                            Set<String> affectedTestSet = new HashSet<>();
-                            for (String test : test2methods.keySet()) {
-                                for (String changedMethod : changedMethods) {
-                                    if (test2methods.get(test).contains(changedMethod)) {
-                                        affectedTestSet.add(test);
-                                        break;
-                                    }
-                                }
-                            }
-                            affectedTestSet = affectedTestSet.stream().map(s -> s.replace("/", ".")).collect(Collectors.toSet());
+//                            Set<String> changedMethods = getChangedMethod(stringURL, testClasses);
+//                            Set<String> affectedTestSet = new HashSet<>();
+//                            for (String test : test2methods.keySet()) {
+//                                for (String changedMethod : changedMethods) {
+//                                    if (test2methods.get(test).contains(changedMethod)) {
+//                                        affectedTestSet.add(test);
+//                                        break;
+//                                    }
+//                                }
+//                            }
+
                             for(String test : tests) {
                                 if (affectedTestSet.contains(test)) {
                                     affected.add(test);
                                 }
-                                if (affected.size()>0)
-                                    changedClasses.add(stringURL);
+                            }
+                            if (affected.size() > 0){
+                                changedClasses.add(stringURL);
                             }
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                         }
@@ -308,6 +312,91 @@ public class ZLCHelper implements StartsConstants {
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
         return new Pair<>(nonAffected, changedClasses);
     }
+
+    public static Set<String> getAffectedTests(Set<String> changedMethods, Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses){
+        Set<String> affectedTests = new HashSet<>();
+        // BFS, starting with the changed methods
+        ArrayDeque<String> queue = new ArrayDeque<>();
+        queue.addAll(changedMethods);
+        Set<String> visitedMethods = new TreeSet<>();
+        while (!queue.isEmpty()){
+            String currentMethod = queue.pollFirst();
+            String currentClass = currentMethod.split("#|\\$")[0];
+            if (testClasses.contains(currentClass)){
+                affectedTests.add(currentClass);
+            }
+            for (String invokedMethod : methodName2MethodNames.getOrDefault(currentMethod, new HashSet<>())){
+                if (!visitedMethods.contains(invokedMethod)) {
+                    queue.add(invokedMethod);
+                    visitedMethods.add(invokedMethod);
+                }
+            }
+        }
+        return affectedTests;
+    }
+
+    public static Set<String> getChangedMethods(Set<String> allTests){
+        Set<String> res = new HashSet<>();
+
+        try {
+            List<Path> classPaths = Files.walk(Paths.get("."))
+                    .filter(Files::isRegularFile)
+                    .filter(f -> f.toString().endsWith(".class"))
+                    .collect(Collectors.toList());
+
+            Set<String> changeTypePaths = new HashSet<>();
+            String serPath = STARTS_ROOT_DIR_NAME + "/" + CHANGE_TYPES_DIR_NAME;
+            if (new File(serPath).exists()) {
+                changeTypePaths = Files.walk(Paths.get(serPath))
+                        .filter(Files::isRegularFile)
+                        .map(Path::toAbsolutePath)
+                        .map(Path::normalize)
+                        .map(Path::toString)
+                        .collect(Collectors.toSet());
+            }
+
+            for (Path classPath : classPaths){
+                byte[] array = Files.readAllBytes(classPath);
+                StartsChangeTypes curChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(array);
+
+                String changeTypePath = FileUtil.urlToSerFilePath(classPath.toUri().toURL().toExternalForm());
+                File preChangeTypeFile = new File(changeTypePath);
+
+                if (!preChangeTypeFile.exists()){
+                    // does not exist before
+                    Set<String> methods = new HashSet<>();
+                    curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                            m.substring(0, m.indexOf(")")+1)));
+                    curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                            m.substring(0, m.indexOf(")")+1)));
+                    res.addAll(methods);
+//                    StartsChangeTypes.toFile(changeTypePath, curChangeTypes);
+                }else {
+                    changeTypePaths.remove(changeTypePath);
+                    StartsChangeTypes preChangeTypes = StartsChangeTypes.fromFile(changeTypePath);
+
+                    if (!preChangeTypes.equals(curChangeTypes)) {
+//                        System.out.println("pre and cur does not equal");
+//                        System.out.println(curChangeTypes.curClass);
+//                        StartsChangeTypes.toFile(changeTypePath, curChangeTypes);
+                        res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
+                                curChangeTypes.methodMap, curChangeTypes.curClass, allTests));
+                        res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
+                                curChangeTypes.constructorsMap, curChangeTypes.curClass, allTests));
+                    }
+                }
+            }
+
+            for(String preChangeTypePath : changeTypePaths){
+                new File(preChangeTypePath).delete();
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return res;
+    }
+
 
     private static Set<String> getChangedMethod(String urlExternalForm, Set<String> allTests){
         Set<String> res = new HashSet<>();

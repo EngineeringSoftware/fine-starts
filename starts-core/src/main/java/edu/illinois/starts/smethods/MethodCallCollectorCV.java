@@ -20,16 +20,23 @@ public class MethodCallCollectorCV extends ClassVisitor {
     Map<String, Set<String>> hierarchy_parents;
     Map<String, Set<String>> hierarchy_children;
     Map<String, Set<String>> class2ContainedMethodNames;
+    Set<String> classesInConstantPool;
+    Map<String, Set<String>> method2usage;
 
     public MethodCallCollectorCV(Map<String, Set<String>> methodName2MethodNames,
+                                 Map<String, Set<String>> method2usage,
                                  Map<String, Set<String>> hierarchy_parents,
                                  Map<String, Set<String>> hierarchy_children,
-                                 Map<String, Set<String>> class2ContainedMethodNames) {
+                                 Map<String, Set<String>> class2ContainedMethodNames,
+                                 Set<String> classesInConstantPool
+                                 ) {
         super(Opcodes.ASM5);
         this.methodName2InvokedMethodNames = methodName2MethodNames;
+        this.method2usage = method2usage;
         this.hierarchy_parents = hierarchy_parents;
         this.hierarchy_children = hierarchy_children;
         this.class2ContainedMethodNames = class2ContainedMethodNames;
+        this.classesInConstantPool = classesInConstantPool;
     }
 
     @Override
@@ -54,19 +61,27 @@ public class MethodCallCollectorCV extends ClassVisitor {
                     if (class2ContainedMethodNames.getOrDefault(owner, new HashSet<>()).contains(methodSig)) {
                         String invokedKey = owner + "#" + methodSig;
                         mInvokedMethods.add(invokedKey);
+
+                        method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                     }else{
                         // find the first parent that implements the method
                         String firstParent = findFirstParent(owner, methodSig);
                         if (!firstParent.equals("")){
                             String invokedKey = firstParent + "#" + methodSig;
                             mInvokedMethods.add(invokedKey);
+
+                            method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                         }
                     }
                     if (!methodSig.startsWith("<init>") && !methodSig.startsWith("<clinit>")) {
                         for (String subClass : hierarchy_children.getOrDefault(owner, new HashSet<>())) {
-                            if (class2ContainedMethodNames.getOrDefault(subClass, new HashSet<>()).contains(methodSig)) {
-                                String invokedKey = subClass + "#" + methodSig;
-                                mInvokedMethods.add(invokedKey);
+                            if (classesInConstantPool.contains(subClass)) {
+                                if (class2ContainedMethodNames.getOrDefault(subClass, new HashSet<>()).contains(methodSig)) {
+                                    String invokedKey = subClass + "#" + methodSig;
+                                    mInvokedMethods.add(invokedKey);
+
+                                    method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
+                                }
                             }
                         }
                     }
