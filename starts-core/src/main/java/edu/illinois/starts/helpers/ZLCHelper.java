@@ -16,10 +16,13 @@ import static edu.illinois.starts.util.Macros.CHANGE_TYPES_DIR_NAME;
 import static edu.illinois.starts.util.Macros.STARTS_ROOT_DIR_NAME;
 
 import org.ekstazi.asm.ClassReader;
+import org.ekstazi.changelevel.ChangeTypes;
 import org.ekstazi.util.Types;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -41,6 +44,7 @@ public class ZLCHelper implements StartsConstants {
 //    private static List<String> allTests;
     private static Set<String> affectedTestSet;
     private static Set<String> allTestClasses = new HashSet<>();
+    private static Set<String> allClassesPaths = null;
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -167,7 +171,7 @@ public class ZLCHelper implements StartsConstants {
             if (fineRTSOn) {
                 try {
                     // todo: save default ChangeTypes
-//                    List<Path> classPaths = Files.walk(Paths.get(""))
+//                    List<Path> classPaths = Files.walk(Paths.get("."))
 //                            .filter(Files::isRegularFile)
 //                            .filter(f -> f.toString().endsWith(".class"))
 //                            .collect(Collectors.toList());
@@ -177,10 +181,8 @@ public class ZLCHelper implements StartsConstants {
 //                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
 //                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
 //                    }
-
                     List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
                     for (String classFilePath : listOfFiles) {
-//                    System.out.println("class file: " + classFilePath);
                         File classFile = new File(classFilePath);
                         if (classFile.isFile()) {
                             StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
@@ -233,6 +235,14 @@ public class ZLCHelper implements StartsConstants {
                 nonAffected.addAll(tests);
                 URL url = new URL(stringURL);
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
+                if (allClassesPaths == null){
+                    allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                            .filter(Files::isRegularFile)
+                            .filter(f -> f.toString().endsWith(".class"))
+                            .map(f -> f.normalize().toAbsolutePath().toString())
+                            .collect(Collectors.toList()));
+                }
+                allClassesPaths.remove(url.getPath());
                 if (!newCheckSum.equals(oldCheckSum)) {
                     //TODO: add checking ChangeType here
                     if (fineRTSOn) {
@@ -242,9 +252,11 @@ public class ZLCHelper implements StartsConstants {
                         try {
                             StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
                             File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
+
                             if (curClassFile.exists()) {
                                 curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                         curClassFile));
+//                                allClassesPaths.remove(curClassFile.toPath());
                                 if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
                                     finertsChanged = false;
                                 }
@@ -282,6 +294,7 @@ public class ZLCHelper implements StartsConstants {
                                 StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }
                         }
+
                     }else{
                         affected.addAll(tests);
                         changedClasses.add(stringURL);
@@ -295,6 +308,8 @@ public class ZLCHelper implements StartsConstants {
                 ZLCData data = new ZLCData(url, newCheckSum, tests);
                 zlcDataMap.put(stringURL, data);
             }
+
+
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
@@ -303,6 +318,21 @@ public class ZLCHelper implements StartsConstants {
             affected.addAll(starTests);
         }
         nonAffected.removeAll(affected);
+        if (fineRTSOn && allClassesPaths!=null){
+            // update the newly add ChangeTyeps
+            for (String remainingPath : allClassesPaths){
+                try {
+                    File remainingFile = new File(remainingPath);
+                    String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
+                    StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                            remainingFile));
+                    if (curStartsChangeTypes != null)
+                        StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
         return new Pair<>(nonAffected, changedClasses);
@@ -359,21 +389,19 @@ public class ZLCHelper implements StartsConstants {
 
                 if (!preChangeTypeFile.exists()){
                     // does not exist before
-                    Set<String> methods = new HashSet<>();
-                    curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
-                            m.substring(0, m.indexOf(")")+1)));
-                    curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
-                            m.substring(0, m.indexOf(")")+1)));
-                    res.addAll(methods);
-//                    StartsChangeTypes.toFile(changeTypePath, curChangeTypes);
+                    if (allTests.contains(curChangeTypes.curClass)) {
+                        Set<String> methods = new HashSet<>();
+                        curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                                m.substring(0, m.indexOf(")") + 1)));
+                        curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                                m.substring(0, m.indexOf(")") + 1)));
+                        res.addAll(methods);
+                    }
                 }else {
                     changeTypePaths.remove(changeTypePath);
                     StartsChangeTypes preChangeTypes = StartsChangeTypes.fromFile(changeTypePath);
 
                     if (!preChangeTypes.equals(curChangeTypes)) {
-//                        System.out.println("pre and cur does not equal");
-//                        System.out.println(curChangeTypes.curClass);
-//                        StartsChangeTypes.toFile(changeTypePath, curChangeTypes);
                         res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
                                 curChangeTypes.methodMap, curChangeTypes.curClass, allTests));
                         res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
@@ -381,7 +409,6 @@ public class ZLCHelper implements StartsConstants {
                     }
                 }
             }
-
             for(String preChangeTypePath : changeTypePaths){
                 new File(preChangeTypePath).delete();
             }
@@ -402,12 +429,14 @@ public class ZLCHelper implements StartsConstants {
             StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(preStartsChangeTypeFile));
             if (!preStartsChangeTypeFile.exists()){
                 // does not exist before
-                Set<String> methods = new HashSet<>();
-                curStartsChangeTypes.methodMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
-                        m.substring(0, m.indexOf(")")+1)));
-                curStartsChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
-                        m.substring(0, m.indexOf(")")+1)));
-                res.addAll(methods);
+                if (allTests.contains(curStartsChangeTypes.curClass)) {
+                    Set<String> methods = new HashSet<>();
+                    curStartsChangeTypes.methodMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
+                            m.substring(0, m.indexOf(")") + 1)));
+                    curStartsChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
+                            m.substring(0, m.indexOf(")") + 1)));
+                    res.addAll(methods);
+                }
 //                    ChangeTypes.toFile(changeTypePath, curChangeTypes);
             }else {
                 StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
@@ -449,7 +478,8 @@ public class ZLCHelper implements StartsConstants {
             }
         }
         // className is Test
-        if (allTests.contains(className)){
+        String outerClassName = className.split("\\$")[0];
+        if (allTests.contains(outerClassName)){
             for (String sig : newMethods.keySet()){
                 res.add(className + "#" + sig.substring(0, sig.indexOf(")")+1));
             }

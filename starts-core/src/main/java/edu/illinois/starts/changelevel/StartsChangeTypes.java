@@ -4,7 +4,6 @@ import org.ekstazi.asm.ClassReader;
 
 import edu.illinois.starts.helpers.FileUtil;
 import edu.illinois.starts.util.Macros;
-import org.ekstazi.changelevel.ChangeTypes;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -297,17 +296,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         }
 
         return true;
-    }
-
-    public static void main(String[] args){
-        String filePath = "/Users/liuyu/pipiyu/finerts/org.ekstazi.core/src/main/java/org/ekstazi/changelevel/A.class";
-        try {
-            byte[] array = Files.readAllBytes(Paths.get(filePath));
-            StartsChangeTypes preStartsChangeTypes = removeDebugInfo(array);
-            System.out.println(preStartsChangeTypes.methodMap);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
