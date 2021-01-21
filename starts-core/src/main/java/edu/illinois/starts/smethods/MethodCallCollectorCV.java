@@ -51,7 +51,8 @@ public class MethodCallCollectorCV extends ClassVisitor {
         if (outerName.equals(PROJECT_PACKAGE)){
             return null;
         }
-        String key = mClassName + "#" + outerName + outerDesc.substring(0, outerDesc.indexOf(")")+1);
+        String outerMethodSig = outerName + outerDesc.substring(0, outerDesc.indexOf(")")+1);
+        String key = mClassName + "#" + outerMethodSig;
         Set<String> mInvokedMethods = methodName2InvokedMethodNames.computeIfAbsent(key, k -> new TreeSet<>());
         return new MethodVisitor(Opcodes.ASM5) {
             @Override
@@ -83,6 +84,14 @@ public class MethodCallCollectorCV extends ClassVisitor {
                                     method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                                 }
                             }
+
+                            // deal with test class in a special way, all the @test method in hierarchy should be considered
+                            if(subClass.contains("Test") && owner.contains("Test")){
+                                String invokedKey = subClass + "#" +  outerMethodSig;
+                                methodName2InvokedMethodNames.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
+
+                                method2usage.computeIfAbsent(key, k -> new TreeSet<>()).add(invokedKey);
+                            }
                         }
                     }
 //	                int INVOKEVIRTUAL = 182;
@@ -105,9 +114,11 @@ public class MethodCallCollectorCV extends ClassVisitor {
                         Set methods = methodName2InvokedMethodNames.getOrDefault(field, new HashSet<>());
                         methods.add(key);
                         methodName2InvokedMethodNames.put(field, methods);
+                        method2usage.computeIfAbsent(key, k -> new TreeSet<>()).add(field);
                     }
                 }
                 mInvokedMethods.add(field);
+                method2usage.computeIfAbsent(field, k -> new TreeSet<>()).add(key);
 //                  Opcodes.GETFIELD, Opcodes.PUTFIELD, Opcodes.GETSTATIC, Opcodes.PUTSTATIC
                 super.visitFieldInsn(opcode, owner, name, desc);
             }
