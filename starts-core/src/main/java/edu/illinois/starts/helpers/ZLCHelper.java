@@ -235,16 +235,18 @@ public class ZLCHelper implements StartsConstants {
                 nonAffected.addAll(tests);
                 URL url = new URL(stringURL);
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
-                if (allClassesPaths == null){
-                    allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
-                            .filter(Files::isRegularFile)
-                            .filter(f -> f.toString().endsWith(".class"))
-                            .map(f -> f.normalize().toAbsolutePath().toString())
-                            .collect(Collectors.toList()));
+                if (fineRTSOn) {
+                    if (allClassesPaths == null) {
+                        allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                                .filter(Files::isRegularFile)
+                                .filter(f -> f.toString().endsWith(".class"))
+                                .map(f -> f.normalize().toAbsolutePath().toString())
+                                .collect(Collectors.toList()));
+                    }
+                    allClassesPaths.remove(url.getPath());
                 }
-                allClassesPaths.remove(url.getPath());
                 if (!newCheckSum.equals(oldCheckSum)) {
-                    //TODO: add checking ChangeType here
+//                    TODO: add checking ChangeType here
                     if (fineRTSOn) {
                         boolean finertsChanged = true;
                         String fileName = FileUtil.urlToSerFilePath(stringURL);
@@ -308,7 +310,6 @@ public class ZLCHelper implements StartsConstants {
                 ZLCData data = new ZLCData(url, newCheckSum, tests);
                 zlcDataMap.put(stringURL, data);
             }
-
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
