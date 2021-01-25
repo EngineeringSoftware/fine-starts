@@ -23,6 +23,16 @@ public class FileUtil {
         file.delete();
     }
 
+    public static String urlToClassName(String urlExternalForm){
+        int i = urlExternalForm.indexOf("target/classes/");
+        if (i == -1)
+            i = urlExternalForm.indexOf("target/test-classes/") + "target/test-classes/".length();
+        else
+            i = i + + "target/classes/".length();
+        String internalName = urlExternalForm.substring(i, urlExternalForm.length()-6);
+        return internalName;
+    }
+
     public static String urlToSerFilePath(String urlExternalForm){
         int index = urlExternalForm.indexOf("target");
         urlExternalForm = urlExternalForm.substring(index).replace(".class", "");
