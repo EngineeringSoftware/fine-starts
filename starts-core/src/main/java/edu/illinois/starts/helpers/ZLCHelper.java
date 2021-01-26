@@ -41,16 +41,14 @@ public class ZLCHelper implements StartsConstants {
     private static final Logger LOGGER = Logger.getGlobal();
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
-//    private static List<String> allTests;
-    private static Set<String> affectedTestSet;
     private static Set<String> allTestClasses = new HashSet<>();
     private static Set<String> allClassesPaths = new HashSet<>();
     private static boolean initGraph = false;
     private static boolean initClassesPaths = false;
-    protected static Set<String> changedMethods = new HashSet<>();
+    private static Set<String> changedMethods = new HashSet<>();
     // method level changed classes
-    protected static Set<String> mlChangedClasses = new HashSet<>();
-    protected static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>( );
+    private static Set<String> mlChangedClasses = new HashSet<>();
+    private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>( );
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -295,28 +293,16 @@ public class ZLCHelper implements StartsConstants {
                                     mlChangedClasses.add(changedMethod.split("#")[0]);
                                 }
                                 initGraph = true;
-//                                affectedTestSet = getAffectedTests(changedMethods, method2usage, allTestClasses);
-//                                affectedTestSet = affectedTestSet.stream().map(s -> s.replace("/", ".")).collect(Collectors.toSet());
                             }
-
-//                            for(String test : tests) {
-//                                if (affectedTestSet.contains(test)) {
-//                                    affected.add(test);
-//                                }
-//                            }
-//
-//                            if (affected.size() > 0){
-//                                changedClasses.add(stringURL);
-//                            }
 
                             for(String test : tests){
                                 clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
                             }
-                            if (curStartsChangeTypes!=null) {
-                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                            }
                             affected.addAll(tests);
                             changedClasses.add(stringURL);
+                        }
+                        if (curStartsChangeTypes!=null) {
+                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                         }
                     }else{
                         affected.addAll(tests);
