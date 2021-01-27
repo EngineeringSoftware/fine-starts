@@ -281,7 +281,7 @@ public class ZLCHelper implements StartsConstants {
                                 // find all the test classes
                                 for (ClassReader c : classReaderList){
                                     if (c.getClassName().contains("Test")){
-                                        allTestClasses.add(c.getClassName());
+                                        allTestClasses.add(c.getClassName().split("\\$")[0]);
                                     }
                                 }
                                 test2methods = getDeps(methodName2MethodNames, allTestClasses);
