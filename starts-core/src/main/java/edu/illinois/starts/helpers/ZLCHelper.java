@@ -175,16 +175,6 @@ public class ZLCHelper implements StartsConstants {
             if (fineRTSOn) {
                 try {
                     // todo: save default ChangeTypes
-//                    List<Path> classPaths = Files.walk(Paths.get("."))
-//                            .filter(Files::isRegularFile)
-//                            .filter(f -> f.toString().endsWith(".class"))
-//                            .collect(Collectors.toList());
-//                    for (Path filePath : classPaths){
-//                        File classFile = filePath.toFile();
-//                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(classFile));
-//                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-//                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-//                    }
                     List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
                     for (String classFilePath : listOfFiles) {
                         File classFile = new File(classFilePath);
@@ -287,7 +277,7 @@ public class ZLCHelper implements StartsConstants {
                                 test2methods = getDeps(methodName2MethodNames, allTestClasses);
 
                                 changedMethods = getChangedMethods(allTestClasses);
-//                                System.out.println("changedMethods: " + changedMethods);
+//
                                 mlChangedClasses = new HashSet<>();
                                 for (String changedMethod : changedMethods){
                                     mlChangedClasses.add(changedMethod.split("#")[0]);

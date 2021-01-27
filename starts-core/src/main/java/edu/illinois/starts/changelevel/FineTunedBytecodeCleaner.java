@@ -21,7 +21,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
     private HashMap<String, String> exceptionMap = new HashMap<>();
     private HashMap<String, String> annotations = new HashMap<>();
     private Set<String> fieldList = new HashSet<>();
-    public HashSet<String> testMethodSig = new HashSet<>();
     private int classModifier;
     private String[] classInterfaces;
     private String superClass = "";
@@ -217,9 +216,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
 
     public StartsChangeTypes getChangeTypes(){
         StartsChangeTypes c = new StartsChangeTypes();
-        c.annotations = this.annotations;
-        c.classInterfaces = this.classInterfaces;
-        c.classModifier = this.classModifier;
         c.constructorsMap = this.constructorsMap;
         c.instanceMethodMap = this.instanceMethodMap;
         c.staticMethodMap = this.staticMethodMap;

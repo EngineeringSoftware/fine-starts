@@ -26,10 +26,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public TreeMap<String, String> constructorsMap;
     public TreeMap<String, String> methodMap;
     public Set<String> fieldList;
-    public HashMap<String, String> exceptionMap;
-    public HashMap<String, String> annotations;
-    public int classModifier;
-    public String[] classInterfaces;
     public String curClass = "";
     public String superClass = "";
     public String urlExternalForm = "";
@@ -42,33 +38,11 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         methodMap = new TreeMap<>();
         instanceFieldMap = new TreeMap<>();
         staticFieldMap = new TreeMap<>();
-        exceptionMap = new HashMap<>();
-        annotations = new HashMap<>();
-        classInterfaces = new String[0];
         fieldList = new HashSet<>();
         curClass = "";
         superClass = "";
         urlExternalForm = "";
     }
-
-//    /** Read the object from Base64 string. */
-//    public static Object fromString(String s) throws IOException,
-//            ClassNotFoundException {
-//        byte [] data = Base64.getDecoder().decode( s );
-//        ObjectInputStream ois = new ObjectInputStream(
-//                new ByteArrayInputStream(  data ) );
-//        Object o  = ois.readObject();
-//        ois.close();
-//        return o;
-//    }
-//    /** Write the object to a Base64 string. */
-//    public static String toString( Serializable o ) throws IOException {
-//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//        ObjectOutputStream oos = new ObjectOutputStream( baos );
-//        oos.writeObject( o );
-//        oos.close();
-//        return Base64.getEncoder().encodeToString(baos.toByteArray());
-//    }
 
     public static StartsChangeTypes fromFile(String fileName) throws IOException,ClassNotFoundException{
         StartsChangeTypes c = null;
@@ -165,11 +139,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         }
         modified = methodChange((TreeMap<String, String>) this.methodMap.clone(), (TreeMap<String, String>) other.methodMap.clone(), hasHierarchy);
         return !modified;
-    }
-
-    public String sortedString(String str){
-        return  str.chars() // IntStream
-                .sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
     }
 
     public HashSet<String> listTestClasses(){
