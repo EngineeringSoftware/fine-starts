@@ -26,8 +26,8 @@ public class MethodLevelStaticDepsBuilder{
     public static Map<String, Set<String>> class2ContainedMethodNames = new HashMap<>();
     // for every method, get the methods it invokes
     public static Map<String, Set<String>> methodName2MethodNames = new HashMap<>();
-    // for every method, get the methods that invoke it (the methods that will be affected by it)
-    public static Map<String, Set<String>> method2usage = new HashMap<>();
+//    // for every method, get the methods that invoke it (the methods that will be affected by it)
+//    public static Map<String, Set<String>> method2usage = new HashMap<>();
     // for every class, find its parents.
     public static Map<String, Set<String>> hierarchy_parents = new HashMap<>();
     // for every class, find its children.

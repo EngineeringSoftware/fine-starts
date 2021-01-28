@@ -274,7 +274,7 @@ public class ZLCHelper implements StartsConstants {
                                 test2methods = getDeps(methodName2MethodNames, allTestClasses);
 
                                 changedMethods = getChangedMethods(allTestClasses);
-//                                System.out.println("changedMethods: " + changedMethods);
+//                                System.out .println("changedMethods: " + changedMethods);
                                 mlChangedClasses = new HashSet<>();
                                 for (String changedMethod : changedMethods){
                                     mlChangedClasses.add(changedMethod.split("#")[0]);

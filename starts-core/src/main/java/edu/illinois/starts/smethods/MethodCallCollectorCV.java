@@ -21,10 +21,8 @@ public class MethodCallCollectorCV extends ClassVisitor {
     Map<String, Set<String>> hierarchy_children;
     Map<String, Set<String>> class2ContainedMethodNames;
     Set<String> classesInConstantPool;
-    Map<String, Set<String>> method2usage;
 
     public MethodCallCollectorCV(Map<String, Set<String>> methodName2MethodNames,
-                                 Map<String, Set<String>> method2usage,
                                  Map<String, Set<String>> hierarchy_parents,
                                  Map<String, Set<String>> hierarchy_children,
                                  Map<String, Set<String>> class2ContainedMethodNames,
@@ -32,7 +30,6 @@ public class MethodCallCollectorCV extends ClassVisitor {
                                  ) {
         super(Opcodes.ASM5);
         this.methodName2InvokedMethodNames = methodName2MethodNames;
-        this.method2usage = method2usage;
         this.hierarchy_parents = hierarchy_parents;
         this.hierarchy_children = hierarchy_children;
         this.class2ContainedMethodNames = class2ContainedMethodNames;
@@ -88,14 +85,14 @@ public class MethodCallCollectorCV extends ClassVisitor {
                     }
                     if (!methodSig.startsWith("<init>") && !methodSig.startsWith("<clinit>")) {
                         for (String subClass : hierarchy_children.getOrDefault(owner, new HashSet<>())) {
-                            if (classesInConstantPool.contains(subClass)) {
+//                            if (classesInConstantPool.contains(subClass)) {
                                 if (class2ContainedMethodNames.getOrDefault(subClass, new HashSet<>()).contains(methodSig)) {
                                     String invokedKey = subClass + "#" + methodSig;
                                     mInvokedMethods.add(invokedKey);
 
 //                                    method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                                 }
-                            }
+//                            }
                         }
                     }
 //	                int INVOKEVIRTUAL = 182;
