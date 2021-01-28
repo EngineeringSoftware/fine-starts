@@ -38,10 +38,11 @@ public class MethodLevelStaticDepsBuilder{
     public static void main(String... args) throws Exception {
         // We need at least the argument that points to the root
         // directory where the search for .class files will start.
-        if (args.length < 1) {
-            throw new RuntimeException("Incorrect arguments");
-        }
-        String pathToStartDir = args[0];
+//        if (args.length < 1) {
+//            throw new RuntimeException("Incorrect arguments");
+//        }
+//        String pathToStartDir = args[0];
+        String pathToStartDir = "/Users/liuyu/projects/ctaxonomy/_downloads/alibaba_fastjson_sekstazi";
 
         List<ClassReader> classReaderList = getClassReaders(pathToStartDir);
 
@@ -51,7 +52,7 @@ public class MethodLevelStaticDepsBuilder{
         // suppose that test classes have Test in their class name
         Set<String> testClasses = new HashSet<>();
         for (String method : methodName2MethodNames.keySet()){
-            String className = method.split("#")[0];
+            String className = method.split("#|\\$")[0];
             if (className.contains("Test")){
                 testClasses.add(className);
             }
