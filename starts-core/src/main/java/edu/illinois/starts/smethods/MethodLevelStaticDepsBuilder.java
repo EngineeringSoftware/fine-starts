@@ -95,9 +95,9 @@ public class MethodLevelStaticDepsBuilder{
             classReader.accept(visitor, ClassReader.SKIP_DEBUG);
         }
         for (ClassReader classReader : classReaderList){
-            Set<String> classesInConstantPool = ConstantPoolParser.getClassNames(ByteBuffer.wrap(classReader.b));
+//            Set<String> classesInConstantPool = ConstantPoolParser.getClassNames(ByteBuffer.wrap(classReader.b));
             //TODO: not keep methodName2MethodNames, hierarchies as fields
-            MethodCallCollectorCV visitor = new MethodCallCollectorCV(methodName2MethodNames, method2usage, hierarchy_parents, hierarchy_children, class2ContainedMethodNames, classesInConstantPool);
+            MethodCallCollectorCV visitor = new MethodCallCollectorCV(methodName2MethodNames, hierarchy_parents, hierarchy_children, class2ContainedMethodNames);
             classReader.accept(visitor, ClassReader.SKIP_DEBUG);
         }
 
@@ -110,7 +110,7 @@ public class MethodLevelStaticDepsBuilder{
                         String superClassKey = superClass + "#" + methodSig;
                         methodName2MethodNames.computeIfAbsent(subClassKey, k -> new TreeSet<>()).add(superClassKey);
 
-                        method2usage.computeIfAbsent(superClassKey, k -> new TreeSet<>()).add(subClassKey);
+//                        method2usage.computeIfAbsent(superClassKey, k -> new TreeSet<>()).add(subClassKey);
                     }
                 }
             }

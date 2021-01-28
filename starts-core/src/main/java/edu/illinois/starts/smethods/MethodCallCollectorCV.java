@@ -39,6 +39,18 @@ public class MethodCallCollectorCV extends ClassVisitor {
         this.classesInConstantPool = classesInConstantPool;
     }
 
+    public MethodCallCollectorCV(Map<String, Set<String>> methodName2MethodNames,
+                                 Map<String, Set<String>> hierarchy_parents,
+                                 Map<String, Set<String>> hierarchy_children,
+                                 Map<String, Set<String>> class2ContainedMethodNames
+    ) {
+        super(Opcodes.ASM5);
+        this.methodName2InvokedMethodNames = methodName2MethodNames;
+        this.hierarchy_parents = hierarchy_parents;
+        this.hierarchy_children = hierarchy_children;
+        this.class2ContainedMethodNames = class2ContainedMethodNames;
+    }
+
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         super.visit(version, access, name, signature, superName, interfaces);
@@ -63,7 +75,7 @@ public class MethodCallCollectorCV extends ClassVisitor {
                         String invokedKey = owner + "#" + methodSig;
                         mInvokedMethods.add(invokedKey);
 
-                        method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
+//                        method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                     }else{
                         // find the first parent that implements the method
                         String firstParent = findFirstParent(owner, methodSig);
@@ -71,7 +83,7 @@ public class MethodCallCollectorCV extends ClassVisitor {
                             String invokedKey = firstParent + "#" + methodSig;
                             mInvokedMethods.add(invokedKey);
 
-                            method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
+//                            method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                         }
                     }
                     if (!methodSig.startsWith("<init>") && !methodSig.startsWith("<clinit>")) {
@@ -81,7 +93,7 @@ public class MethodCallCollectorCV extends ClassVisitor {
                                     String invokedKey = subClass + "#" + methodSig;
                                     mInvokedMethods.add(invokedKey);
 
-                                    method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
+//                                    method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                                 }
                             }
                         }
@@ -97,20 +109,22 @@ public class MethodCallCollectorCV extends ClassVisitor {
 
             @Override
             public void visitFieldInsn(int opcode, String owner, String name, String desc){
-                String field = owner + "#" + name;
-                // outerDesc.equals("<init>")
-                // non static field would be invoked through constructor
-                if ( (opcode == Opcodes.PUTSTATIC && outerName.equals("<clinit>")) || (opcode == Opcodes.PUTFIELD && outerName.equals("<init>"))) {
-                    // || hierarchies.getOrDefault(mClassName, new HashSet<>()).contains(owner)
-                    if (owner.equals(mClassName)) {
-                        Set methods = methodName2InvokedMethodNames.getOrDefault(field, new HashSet<>());
-                        methods.add(key);
-                        methodName2InvokedMethodNames.put(field, methods);
-                        method2usage.computeIfAbsent(key, k -> new TreeSet<>()).add(field);
+                if (!owner.startsWith("java/")  && !owner.startsWith("org/junit/")) {
+                    String field = owner + "#" + name;
+                    // outerDesc.equals("<init>")
+                    // non static field would be invoked through constructor
+                    if ((opcode == Opcodes.PUTSTATIC && outerName.equals("<clinit>")) || (opcode == Opcodes.PUTFIELD && outerName.equals("<init>"))) {
+                        // || hierarchies.getOrDefault(mClassName, new HashSet<>()).contains(owner)
+                        if (owner.equals(mClassName)) {
+                            Set methods = methodName2InvokedMethodNames.getOrDefault(field, new HashSet<>());
+                            methods.add(key);
+                            methodName2InvokedMethodNames.put(field, methods);
+//                            method2usage.computeIfAbsent(key, k -> new TreeSet<>()).add(field);
+                        }
                     }
+                    mInvokedMethods.add(field);
+//                    method2usage.computeIfAbsent(field, k -> new TreeSet<>()).add(key);
                 }
-                mInvokedMethods.add(field);
-                method2usage.computeIfAbsent(field, k -> new TreeSet<>()).add(key);
 //                  Opcodes.GETFIELD, Opcodes.PUTFIELD, Opcodes.GETSTATIC, Opcodes.PUTSTATIC
                 super.visitFieldInsn(opcode, owner, name, desc);
             }

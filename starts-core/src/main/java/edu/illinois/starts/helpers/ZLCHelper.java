@@ -16,13 +16,10 @@ import static edu.illinois.starts.util.Macros.CHANGE_TYPES_DIR_NAME;
 import static edu.illinois.starts.util.Macros.STARTS_ROOT_DIR_NAME;
 
 import org.ekstazi.asm.ClassReader;
-import org.ekstazi.changelevel.ChangeTypes;
 import org.ekstazi.util.Types;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
