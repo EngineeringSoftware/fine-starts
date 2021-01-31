@@ -163,7 +163,7 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
 
@@ -251,7 +251,6 @@ public class ZLCHelper implements StartsConstants {
                             if (curClassFile.exists()) {
                                 curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                         curClassFile));
-//                                allClassesPaths.remove(curClassFile.toPath());
                                 if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
                                     finertsChanged = false;
                                 }
@@ -261,29 +260,31 @@ public class ZLCHelper implements StartsConstants {
                         }
 
                         if (finertsChanged) {
-                            if (!initGraph){
-                                List<ClassReader> classReaderList = getClassReaders(".");
-                                // find the methods that each method calls
-                                findMethodsinvoked(classReaderList);
-                                // find all the test classes
-                                for (ClassReader c : classReaderList){
-                                    if (c.getClassName().contains("Test")){
-                                        allTestClasses.add(c.getClassName().split("\\$")[0]);
+                            if (mRTSOn) {
+                                if (!initGraph) {
+                                    List<ClassReader> classReaderList = getClassReaders(".");
+                                    // find the methods that each method calls
+                                    findMethodsinvoked(classReaderList);
+                                    // find all the test classes
+                                    for (ClassReader c : classReaderList) {
+                                        if (c.getClassName().contains("Test")) {
+                                            allTestClasses.add(c.getClassName().split("\\$")[0]);
+                                        }
                                     }
-                                }
-                                test2methods = getDeps(methodName2MethodNames, allTestClasses);
+                                    test2methods = getDeps(methodName2MethodNames, allTestClasses);
 
-                                changedMethods = getChangedMethods(allTestClasses);
+                                    changedMethods = getChangedMethods(allTestClasses);
 //                                System.out .println("changedMethods: " + changedMethods);
-                                mlChangedClasses = new HashSet<>();
-                                for (String changedMethod : changedMethods){
-                                    mlChangedClasses.add(changedMethod.split("#")[0]);
+                                    mlChangedClasses = new HashSet<>();
+                                    for (String changedMethod : changedMethods) {
+                                        mlChangedClasses.add(changedMethod.split("#")[0]);
+                                    }
+                                    initGraph = true;
                                 }
-                                initGraph = true;
-                            }
 
-                            for(String test : tests){
-                                clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                                for (String test : tests) {
+                                    clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                                }
                             }
                             affected.addAll(tests);
                             changedClasses.add(stringURL);
@@ -315,7 +316,9 @@ public class ZLCHelper implements StartsConstants {
         }
 
         if (fineRTSOn){
-            affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
+            if (mRTSOn) {
+                affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
+            }
 //            System.out.println("affected: " + affected);
             if (allClassesPaths!=null) {
                 // update the newly add ChangeTyeps
