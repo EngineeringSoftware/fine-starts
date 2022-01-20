@@ -226,21 +226,19 @@ public class ZLCHelper implements StartsConstants {
                 nonAffected.addAll(tests);
                 URL url = new URL(stringURL);
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
-                if (fineRTSOn) {
-                    if (!initClassesPaths) {
-                        // init
-                        allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
-                                .filter(Files::isRegularFile)
-                                .filter(f -> f.toString().endsWith(".class"))
-                                .map(f -> f.normalize().toAbsolutePath().toString())
-                                .collect(Collectors.toList()));
-                        initClassesPaths = true;
-                    }
-                    allClassesPaths.remove(url.getPath());
-                }
                 if (!newCheckSum.equals(oldCheckSum)) {
 //                  TODO: add checking ChangeType here
                     if (fineRTSOn) {
+                        if (!initClassesPaths) {
+                            // init
+                            allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                                    .filter(Files::isRegularFile)
+                                    .filter(f -> f.toString().endsWith(".class"))
+                                    .map(f -> f.normalize().toAbsolutePath().toString())
+                                    .collect(Collectors.toList()));
+                            initClassesPaths = true;
+                        }
+                        allClassesPaths.remove(url.getPath());
                         boolean finertsChanged = true;
                         String fileName = FileUtil.urlToSerFilePath(stringURL);
                         StartsChangeTypes curStartsChangeTypes = null;
