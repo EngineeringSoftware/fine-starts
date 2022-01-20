@@ -182,7 +182,7 @@ public class MethodLevelStaticDepsBuilder{
         Map<String, Set<String>> test2methods = new ConcurrentSkipListMap<>();
         ExecutorService service = null;
         try {
-            service = Executors.newFixedThreadPool(8);
+            service = Executors.newFixedThreadPool(16);
             for (final String testClass : testClasses)
             {
                 service.submit(() -> {
@@ -191,7 +191,7 @@ public class MethodLevelStaticDepsBuilder{
                 });
             }
             service.shutdown();
-            service.awaitTermination(5, TimeUnit.SECONDS);
+            service.awaitTermination(5, TimeUnit.MINUTES);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -244,6 +244,5 @@ public class MethodLevelStaticDepsBuilder{
         }
         return res;
     }
-
 
 }

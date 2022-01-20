@@ -239,7 +239,7 @@ public class ZLCHelper implements StartsConstants {
                     allClassesPaths.remove(url.getPath());
                 }
                 if (!newCheckSum.equals(oldCheckSum)) {
-//                    TODO: add checking ChangeType here
+//                  TODO: add checking ChangeType here
                     if (fineRTSOn) {
                         boolean finertsChanged = true;
                         String fileName = FileUtil.urlToSerFilePath(stringURL);
