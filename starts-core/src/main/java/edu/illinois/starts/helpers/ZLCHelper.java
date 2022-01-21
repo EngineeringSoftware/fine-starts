@@ -163,13 +163,13 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
 
         if (!zlc.exists()) {
             //TODO: first run
-            if (fineRTSOn) {
+            if (saveMRTSOn && fineRTSOn) {
                 try {
                     // todo: save default ChangeTypes
                     List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
@@ -287,7 +287,7 @@ public class ZLCHelper implements StartsConstants {
                             affected.addAll(tests);
                             changedClasses.add(stringURL);
                         }
-                        if (curStartsChangeTypes!=null) {
+                        if (saveMRTSOn && curStartsChangeTypes!=null) {
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                         }
                     }else{
@@ -326,7 +326,7 @@ public class ZLCHelper implements StartsConstants {
                         String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
                         StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                 remainingFile));
-                        if (curStartsChangeTypes != null)
+                        if (saveMRTSOn && curStartsChangeTypes != null)
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                     } catch (IOException e) {
                         e.printStackTrace();
