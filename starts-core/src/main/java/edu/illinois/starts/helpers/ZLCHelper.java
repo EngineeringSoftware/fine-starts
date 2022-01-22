@@ -9,6 +9,7 @@ import edu.illinois.starts.data.ZLCData;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
 import edu.illinois.starts.util.Pair;
+import edu.illinois.yasgl.DirectedGraphBuilder;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
 import static edu.illinois.starts.smethods.MethodLevelStaticDepsBuilder.*;
@@ -266,8 +267,18 @@ public class ZLCHelper implements StartsConstants {
                                             allTestClasses.add(c.getClassName().split("\\$")[0]);
                                         }
                                     }
-                                    test2methods = getDeps(methodName2MethodNames, allTestClasses);
-
+                                    // build the graph
+                                    DirectedGraphBuilder<String> builder = new DirectedGraphBuilder<>();
+                                    for (String key : methodName2MethodNames.keySet()) {
+                                        for (String dep : methodName2MethodNames.get(key)) {
+                                            builder.addEdge(key, dep);
+                                        }
+                                    }
+                                    m2mGraph = builder.build();
+                                    
+                                    test2methods = getDFS(methodName2MethodNames, allTestClasses);
+                                    Map<String, Set<String>> test2methodsDFS = getDFSDeps(methodName2MethodNames, allTestClasses);
+                                    // verify(test2methods, test2methodsDFS);
                                     changedMethods = getChangedMethods(allTestClasses);
 //                                System.out .println("changedMethods: " + changedMethods);
                                     mlChangedClasses = new HashSet<>();

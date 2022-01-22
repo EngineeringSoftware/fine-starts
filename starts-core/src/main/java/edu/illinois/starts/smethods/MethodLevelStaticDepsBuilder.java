@@ -1,8 +1,11 @@
 package edu.illinois.starts.smethods;
 
 import org.ekstazi.asm.ClassReader;
+
+import edu.illinois.starts.helpers.YasglHelper;
 import edu.illinois.starts.smethods.ClassToMethodsCollectorCV;
 import edu.illinois.starts.smethods.MethodCallCollectorCV;
+import edu.illinois.yasgl.DirectedGraph;
 import edu.illinois.starts.smethods.ConstantPoolParser;
 
 import java.io.File;
@@ -39,6 +42,8 @@ public class MethodLevelStaticDepsBuilder{
     // for every test class, find what method it depends on
     public static Map<String, Set<String>> test2methods = new HashMap<>();
 
+    public static DirectedGraph<String> m2mGraph;
+
     public static void main(String... args) throws Exception {
         // We need at least the argument that points to the root
         // directory where the search for .class files will start.
@@ -62,7 +67,7 @@ public class MethodLevelStaticDepsBuilder{
             }
         }
 
-        test2methods = getDeps(methodName2MethodNames, testClasses);
+        test2methods = getDFSDeps(methodName2MethodNames, testClasses);
 
         saveMap(methodName2MethodNames, "graph.txt");
         saveMap(hierarchy_parents, "hierarchy_parents.txt");
@@ -153,7 +158,7 @@ public class MethodLevelStaticDepsBuilder{
         pw.close();
     }
 
-    public static Set<String> getDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
+    public static Set<String> getDFSDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
         Set<String> visitedMethods = new TreeSet<>();
         //BFS
         ArrayDeque<String> queue = new ArrayDeque<>();
@@ -178,7 +183,7 @@ public class MethodLevelStaticDepsBuilder{
         return visitedMethods;
     }
 
-    public static Map<String, Set<String>> getDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses) {
+    public static Map<String, Set<String>> getDFSDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses) {
         Map<String, Set<String>> test2methods = new ConcurrentSkipListMap<>();
         ExecutorService service = null;
         try {
@@ -186,7 +191,7 @@ public class MethodLevelStaticDepsBuilder{
             for (final String testClass : testClasses)
             {
                 service.submit(() -> {
-                    Set<String> invokedMethods = getDepsHelper(methodName2MethodNames, testClass);
+                    Set<String> invokedMethods = getDFSDepsHelper(methodName2MethodNames, testClass);
                     test2methods.put(testClass, invokedMethods);
                 });
             }
@@ -196,6 +201,38 @@ public class MethodLevelStaticDepsBuilder{
             throw new RuntimeException(e);
         }
         return test2methods;
+    }
+
+    public static Set<String> getDeps(DirectedGraph<String> m2mGraph, String test){
+        Set<String> testMethods = new HashSet<>();
+        Set<String> tcMethods = new HashSet<>();
+        for (String method : methodName2MethodNames.keySet()){
+            if (method.startsWith(test+"#")){
+                testMethods.add(method);
+            }
+            Set<String> deps = YasglHelper.computeReachabilityFromChangedClasses(
+                testMethods, m2mGraph);
+            deps.addAll(testMethods);
+            tcMethods.addAll(deps);
+        }
+        return tcMethods;        
+    }
+
+    public static Map<String, Set<String>> getDeps(DirectedGraph<String> m2mGraph, Set<String> tests){
+        Map<String, Set<String>> mPerTest = new HashMap<>();
+        for (String test : tests) {
+            Set<String> testMethods = new HashSet<>();
+            for (String method : methodName2MethodNames.keySet()){
+                if (method.startsWith(test+"#")){
+                    testMethods.add(method);
+                }
+                Set<String> deps = YasglHelper.computeReachabilityFromChangedClasses(
+                    testMethods, m2mGraph);
+                deps.addAll(testMethods);
+                mPerTest.computeIfAbsent(test, k -> new HashSet<>()).addAll(deps);
+            }
+        }
+        return mPerTest;
     }
 
 //    public static Map<String, Set<String>> getDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses){
@@ -243,6 +280,29 @@ public class MethodLevelStaticDepsBuilder{
             }
         }
         return res;
+    }
+
+    public static void verify(Map<String, Set<String>> test2methods, Map<String, Set<String>> test2methodsPrime){
+        boolean verified = true;
+        for (String test : test2methods.keySet()) {
+            if (!test2methodsPrime.containsKey(test)){
+                System.out.println("test: " + test);
+                System.out.println("test2methods and test2methodsPrime should contain same test");
+                // throw new RuntimeException("test2methods and test2methodsPrime should contain same test");
+                verified = false;
+            }
+            if (test2methods.get(test).size() != test2methodsPrime.get(test).size()) {
+                System.out.println("[test2methods]: " + test + " " + test2methods.get(test).size() + " " + test2methodsPrime.get(test).size());
+                verified = false;
+                // Set<String> diffSet = (TreeSet<String>) test2methodsPrime.get(test);
+                // diffSet.removeAll(test2methods.get(test));
+                // System.out.println("[diffSet]: " + diffSet);
+                // throw new RuntimeException("[test2methods]: " + test + " " + test2methods.get(test).size() + " " + test2methodsPrime.get(test).size());   
+            }
+        }
+        if (verified) {
+            System.out.println("verified");
+        }
     }
 
 }
