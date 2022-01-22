@@ -171,28 +171,25 @@ public class ZLCHelper implements StartsConstants {
             //TODO: first run
             if (saveMRTSOn && fineRTSOn) {
                 try {
-                    // todo: save default ChangeTypes
-                    List<String> listOfFiles = listFiles(System.getProperty("user.dir") + "/target/classes");
-                    for (String classFilePath : listOfFiles) {
-                        File classFile = new File(classFilePath);
-                        if (classFile.isFile()) {
-                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                    classFile));
-                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                        }
-                    }
-                    listOfFiles = listFiles(System.getProperty("user.dir") + "/target/test-classes");
-                    for (String classFilePath : listOfFiles) {
-                        File classFile = new File(classFilePath);
-                        if (classFile.isFile()) {
-                            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                    classFile));
-                            String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
-                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                        }
-                    }
-
+                    //todo: save default ChangeTypes
+                    Files.walk(Paths.get("."))
+                    .sequential()
+                    .filter(x -> !x.toFile().isDirectory())
+                    .filter(x -> x.toFile().getAbsolutePath().endsWith(".class"))
+                    .forEach(t -> {
+                            try {
+                                File classFile = t.toFile();
+                                if (classFile.isFile()) {   
+                                    StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                            classFile));
+                                    String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
+                                    StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                                    // System.out.println("successfully saved starts change types for " + fileName);
+                                }
+                            } catch(IOException e) {
+                                System.out.println("Cannot parse file: "+t);
+                            }
+                    });
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
