@@ -67,7 +67,7 @@ public class MethodLevelStaticDepsBuilder{
             }
         }
 
-        test2methods = getDFSDeps(methodName2MethodNames, testClasses);
+        test2methods = getBFSDeps(methodName2MethodNames, testClasses);
 
         saveMap(methodName2MethodNames, "graph.txt");
         saveMap(hierarchy_parents, "hierarchy_parents.txt");
@@ -158,7 +158,7 @@ public class MethodLevelStaticDepsBuilder{
         pw.close();
     }
 
-    public static Set<String> getDFSDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
+    public static Set<String> getBFSDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
         Set<String> visitedMethods = new TreeSet<>();
         //BFS
         ArrayDeque<String> queue = new ArrayDeque<>();
@@ -183,7 +183,7 @@ public class MethodLevelStaticDepsBuilder{
         return visitedMethods;
     }
 
-    public static Map<String, Set<String>> getDFSDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses) {
+    public static Map<String, Set<String>> getBFSDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses) {
         Map<String, Set<String>> test2methods = new ConcurrentSkipListMap<>();
         ExecutorService service = null;
         try {
@@ -191,7 +191,7 @@ public class MethodLevelStaticDepsBuilder{
             for (final String testClass : testClasses)
             {
                 service.submit(() -> {
-                    Set<String> invokedMethods = getDFSDepsHelper(methodName2MethodNames, testClass);
+                    Set<String> invokedMethods = getBFSDepsHelper(methodName2MethodNames, testClass);
                     test2methods.put(testClass, invokedMethods);
                 });
             }
@@ -203,19 +203,37 @@ public class MethodLevelStaticDepsBuilder{
         return test2methods;
     }
 
-    public static Set<String> getDeps(DirectedGraph<String> m2mGraph, String test){
-        Set<String> testMethods = new HashSet<>();
-        Set<String> tcMethods = new HashSet<>();
-        for (String method : methodName2MethodNames.keySet()){
-            if (method.startsWith(test+"#")){
-                testMethods.add(method);
+        // simple DFS
+        public static void getDFSDepsHelper(String methodName, Map<String, Set<String>> methodName2MethodNames, Set<String> visitedMethods){
+            if (methodName2MethodNames.containsKey(methodName)){
+                for (String method : methodName2MethodNames.get(methodName)){
+                    if (!visitedMethods.contains(method)){
+                        visitedMethods.add(method);
+                        getDFSDepsHelper(method, methodName2MethodNames, visitedMethods);
+                    }
+                }
             }
-            Set<String> deps = YasglHelper.computeReachabilityFromChangedClasses(
-                testMethods, m2mGraph);
-            deps.addAll(testMethods);
-            tcMethods.addAll(deps);
         }
-        return tcMethods;        
+
+    public static Map<String, Set<String>> getDFSDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses){
+        Map<String, Set<String>> test2methods = new HashMap<>();
+        for (String testClass : testClasses){
+            // DFS
+            Set<String> methodDeps = new HashSet<>();
+            HashSet<String> visited = new HashSet<>();
+            for (String method : methodName2MethodNames.keySet()){
+                if (method.startsWith(testClass+"#")){
+                    visited.add(method);
+                    getDFSDepsHelper(method, methodName2MethodNames, visited);
+                    methodDeps.addAll(visited);
+                }
+            }
+            testClass = testClass.split("\\$")[0];
+            Set<String> existedDeps = test2methods.getOrDefault(testClass, new HashSet<>());
+            existedDeps.addAll(methodDeps);
+            test2methods.put(testClass, existedDeps);
+        }
+        return test2methods;
     }
 
     public static Map<String, Set<String>> getDeps(DirectedGraph<String> m2mGraph, Set<String> tests){
@@ -226,11 +244,11 @@ public class MethodLevelStaticDepsBuilder{
                 if (method.startsWith(test+"#")){
                     testMethods.add(method);
                 }
-                Set<String> deps = YasglHelper.computeReachabilityFromChangedClasses(
-                    testMethods, m2mGraph);
-                deps.addAll(testMethods);
-                mPerTest.computeIfAbsent(test, k -> new HashSet<>()).addAll(deps);
             }
+            Set<String> deps = YasglHelper.computeReachabilityFromChangedClasses(
+                testMethods, m2mGraph);
+            deps.addAll(testMethods);
+            mPerTest.computeIfAbsent(test, k -> new HashSet<>()).addAll(deps);
         }
         return mPerTest;
     }

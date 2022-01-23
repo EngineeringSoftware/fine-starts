@@ -168,9 +168,12 @@ public class ZLCHelper implements StartsConstants {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
 
+        long saveFileTime = 0;
+
         if (!zlc.exists()) {
             //TODO: first run
             if (saveMRTSOn && fineRTSOn) {
+                long saveStart = System.currentTimeMillis();
                 try {
                     //todo: save default ChangeTypes
                     Files.walk(Paths.get("."))
@@ -194,6 +197,8 @@ public class ZLCHelper implements StartsConstants {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+                long saveEnd = System.currentTimeMillis();
+                saveFileTime = saveEnd - saveStart;
             }
 
             LOGGER.log(Level.FINEST, NOEXISTING_ZLCFILE_FIRST_RUN);
@@ -258,6 +263,8 @@ public class ZLCHelper implements StartsConstants {
                         if (finertsChanged) {
                             if (mRTSOn) {
                                 if (!initGraph) {
+                                    long graphStart = System.currentTimeMillis();
+
                                     List<ClassReader> classReaderList = getClassReaders(".");
                                     // find the methods that each method calls
                                     findMethodsinvoked(classReaderList);
@@ -267,7 +274,7 @@ public class ZLCHelper implements StartsConstants {
                                             allTestClasses.add(c.getClassName().split("\\$")[0]);
                                         }
                                     }
-                                    // build the graph
+
                                     DirectedGraphBuilder<String> builder = new DirectedGraphBuilder<>();
                                     for (String key : methodName2MethodNames.keySet()) {
                                         for (String dep : methodName2MethodNames.get(key)) {
@@ -275,10 +282,27 @@ public class ZLCHelper implements StartsConstants {
                                         }
                                     }
                                     m2mGraph = builder.build();
-                                    
-                                    test2methods = getDFS(methodName2MethodNames, allTestClasses);
+                                    long graphEnd = System.currentTimeMillis();
+                                    System.out.println("graph building time: " + (graphEnd - graphStart)/1000 + "s");
+                                    // TODO: following two lines are used for debugging
+                                    long yasglStart = System.currentTimeMillis();
+                                    test2methods = getDeps(m2mGraph, allTestClasses);
+                                    long yasglEnd = System.currentTimeMillis();
+                                    System.out.println("yasgl time: " + (yasglEnd - yasglStart)/1000.0 + "s");
+
+                                    long dfsStart = System.currentTimeMillis();
+                                    Map<String, Set<String>> test2methodsBFS = getBFSDeps(methodName2MethodNames, allTestClasses);
+                                    long dfsEnd = System.currentTimeMillis();
+                                    System.out.println("bfs multi-threading time: " + (dfsEnd - dfsStart)/1000.0 + "s");
+
+                                    long dfsNoThreadStart = System.currentTimeMillis();
                                     Map<String, Set<String>> test2methodsDFS = getDFSDeps(methodName2MethodNames, allTestClasses);
-                                    // verify(test2methods, test2methodsDFS);
+                                    long dfsNoThreadEnd = System.currentTimeMillis();
+                                    System.out.println("dfsNoThread time: " + (dfsNoThreadEnd - dfsNoThreadStart)/1000.0 + "s");
+
+                                    verify(test2methods, test2methodsDFS);
+                                    verify(test2methods, test2methodsBFS);
+
                                     changedMethods = getChangedMethods(allTestClasses);
 //                                System.out .println("changedMethods: " + changedMethods);
                                     mlChangedClasses = new HashSet<>();
@@ -296,7 +320,10 @@ public class ZLCHelper implements StartsConstants {
                             changedClasses.add(stringURL);
                         }
                         if (saveMRTSOn && curStartsChangeTypes!=null) {
+                            long saveStart = System.currentTimeMillis();
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                            long saveEnd = System.currentTimeMillis();
+                            saveFileTime += saveEnd - saveStart;
                         }
                     }else{
                         affected.addAll(tests);
@@ -334,8 +361,12 @@ public class ZLCHelper implements StartsConstants {
                         String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
                         StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                 remainingFile));
-                        if (saveMRTSOn && curStartsChangeTypes != null)
+                        if (saveMRTSOn && curStartsChangeTypes != null){
+                            long saveStart = System.currentTimeMillis();
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                            long saveEnd = System.currentTimeMillis();
+                            saveFileTime += saveEnd - saveStart;
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -344,6 +375,8 @@ public class ZLCHelper implements StartsConstants {
         }
 
         nonAffected.removeAll(affected);
+        System.out.println(".............................");
+        System.out.println("save file time: " + saveFileTime);
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
         return new Pair<>(nonAffected, changedClasses);
