@@ -153,6 +153,29 @@ public class MethodLevelStaticDepsBuilder{
         pw.close();
     }
 
+    // simple DFS
+    public static void getDepsForTestHelper(String methodName, Map<String, Set<String>> methodName2MethodNames, Set<String> visitedMethods){
+        if (methodName2MethodNames.containsKey(methodName)){
+            for (String method : methodName2MethodNames.get(methodName)){
+                if (!visitedMethods.contains(method)){
+                    visitedMethods.add(method);
+                    getDepsForTestHelper(method, methodName2MethodNames, visitedMethods);
+                }
+            }
+        }
+    }
+
+    public static Set<String> getDepsForTest(Map<String, Set<String>> methodName2MethodNames, String testClass){
+        Set<String> visitedMethods = new HashSet<>();
+        for (String method : methodName2MethodNames.keySet()){
+            if (method.startsWith(testClass+"#")){
+                visitedMethods.add(method);
+                getDepsForTestHelper(method, methodName2MethodNames, visitedMethods);
+            }
+        }
+        return visitedMethods;
+    }
+
     public static Set<String> getDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
         Set<String> visitedMethods = new TreeSet<>();
         //BFS

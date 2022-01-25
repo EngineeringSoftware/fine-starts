@@ -6,12 +6,15 @@ package edu.illinois.starts.helpers;
 
 import edu.illinois.starts.constants.StartsConstants;
 import edu.illinois.starts.data.ZLCData;
+import edu.illinois.starts.smethods.HotFileHelper;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
+import edu.illinois.starts.util.Macros;
 import edu.illinois.starts.util.Pair;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
 import static edu.illinois.starts.smethods.MethodLevelStaticDepsBuilder.*;
+import static edu.illinois.starts.smethods.HotFileHelper.hotFiles;
 import static edu.illinois.starts.util.Macros.CHANGE_TYPES_DIR_NAME;
 import static edu.illinois.starts.util.Macros.STARTS_ROOT_DIR_NAME;
 
@@ -163,7 +166,7 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean hotFileOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
 
@@ -223,9 +226,75 @@ public class ZLCHelper implements StartsConstants {
                 nonAffected.addAll(tests);
                 URL url = new URL(stringURL);
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
+                
                 if (!newCheckSum.equals(oldCheckSum)) {
 //                  TODO: add checking ChangeType here
-                    if (fineRTSOn) {
+
+                    if (hotFileOn){
+                        if (hotFiles == null){
+                            hotFiles = HotFileHelper.getHotFiles(Macros.SIZE_HOTFILE);
+                        }
+                        if (hotFiles.contains(url.toExternalForm())){
+                            // hot file, method level selection
+                            if (!initClassesPaths) {
+                                // init
+                                allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                                        .filter(Files::isRegularFile)
+                                        .filter(f -> f.toString().endsWith(".class"))
+                                        .map(f -> f.normalize().toAbsolutePath().toString())
+                                        .collect(Collectors.toList()));
+                                initClassesPaths = true;
+                            }
+                            allClassesPaths.remove(url.getPath());
+                            boolean finertsChanged = true;
+                            String fileName = FileUtil.urlToSerFilePath(stringURL);
+                            StartsChangeTypes curStartsChangeTypes = null;
+                            try {
+                                StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
+                                File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
+    
+                                if (curClassFile.exists()) {
+                                    curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                            curClassFile));
+                                    if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
+                                        finertsChanged = false;
+                                    }
+                                }
+                            } catch (ClassNotFoundException | IOException e) {
+                                throw new RuntimeException(e);
+                            }
+    
+                            if (finertsChanged) {
+                                if (!initGraph) {
+                                    List<ClassReader> classReaderList = getClassReaders(".");
+                                    // find the methods that each method calls
+                                    findMethodsinvoked(classReaderList);
+                                    // find all the test classes
+                                    for (ClassReader c : classReaderList) {
+                                        if (c.getClassName().contains("Test")) {
+                                            allTestClasses.add(c.getClassName().split("\\$")[0]);
+                                        }
+                                    }   
+                                    changedMethods = getChangedMethods(allTestClasses);
+//                                  System.out .println("changedMethods: " + changedMethods);
+                                    mlChangedClasses = new HashSet<>();
+                                    for (String changedMethod : changedMethods) {
+                                        mlChangedClasses.add(changedMethod.split("#")[0]);
+                                    }
+                                    initGraph = true;     
+                                }
+                                for (String test : tests) {
+                                    clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                                } 
+                                if (saveMRTSOn && curStartsChangeTypes!=null) {
+                                    StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                                }   
+                            }
+                        }else{
+                            affected.addAll(tests);
+                            changedClasses.add(stringURL);
+                        }
+                    }else if (fineRTSOn) {
                         if (!initClassesPaths) {
                             // init
                             allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
@@ -310,7 +379,30 @@ public class ZLCHelper implements StartsConstants {
             affected.addAll(starTests);
         }
 
-        if (fineRTSOn){
+        if (hotFileOn){
+            affected.removeIf(affectedTest -> {
+                Set<String> mlUsedClasses = new HashSet<>();
+                Set<String> mlUsedMethods =  getDepsForTest(methodName2MethodNames, affectedTest); 
+                for (String mulUsedMethod: mlUsedMethods){
+                    mlUsedClasses.add(mulUsedMethod.split("#")[0]);
+                }
+                Set<String> clModifiedClasses = clModifiedClassesMap.get(affectedTest);
+                if (mlUsedClasses.containsAll(clModifiedClasses)){
+                    // method level
+                    for (String clModifiedClass : clModifiedClasses){
+                        for (String method : changedMethods){
+                            if (method.startsWith(clModifiedClass) && mlUsedMethods.contains(method)){
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }else{
+                    // imprecision due to static field
+                    return true;
+                }   
+            });
+        }else if (fineRTSOn){
             if (mRTSOn) {
                 affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
             }
@@ -346,14 +438,9 @@ public class ZLCHelper implements StartsConstants {
             mlUsedClasses.add(mulUsedMethod.split("#")[0]);
         }
         Set<String> clModifiedClasses = clModifiedClassesMap.get(test);
-//        System.out.println();
-//        System.out.println("mlUsedMethods: " + mlUsedClasses);
-//        System.out.println("clModifieldClasses: " + clModifiedClasses);
-//        System.out.println();
         if (mlUsedClasses.containsAll(clModifiedClasses)){
             // method level
             for (String clModifiedClass : clModifiedClasses){
-                // todo
                 for (String method : changedMethods){
                     if (method.startsWith(clModifiedClass) && mlUsedMethods.contains(method)){
                         return true;
