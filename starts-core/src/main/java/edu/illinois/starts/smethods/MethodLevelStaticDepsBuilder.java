@@ -6,6 +6,7 @@ import edu.illinois.starts.helpers.YasglHelper;
 import edu.illinois.starts.smethods.ClassToMethodsCollectorCV;
 import edu.illinois.starts.smethods.MethodCallCollectorCV;
 import edu.illinois.yasgl.DirectedGraph;
+import edu.illinois.yasgl.GraphUtils;
 import edu.illinois.starts.smethods.ConstantPoolParser;
 
 import java.io.File;
@@ -236,6 +237,24 @@ public class MethodLevelStaticDepsBuilder{
         return test2methods;
     }
 
+    public static Map<String, Set<String>> getDepsTC(DirectedGraph<String> m2mGraph, Set<String> tests){
+        Map<String, Set<String>> mPerTest = new HashMap<>();
+        Map<String, Set<String>> tc = GraphUtils.computeTransitiveClosure(m2mGraph);
+        for (String test : tests) {
+            Set<String> tcMethods = new HashSet<>();
+            for (String method : methodName2MethodNames.keySet()){
+                if (method.startsWith(test+"#")){
+                    if (tc.containsKey(method)){
+                        tcMethods.addAll(tc.get(method)); 
+                    }
+                    tcMethods.add(method);
+                }
+            }
+            mPerTest.put(test, tcMethods);            
+        }
+        return mPerTest;    
+    }
+
     public static Map<String, Set<String>> getDeps(DirectedGraph<String> m2mGraph, Set<String> tests){
         Map<String, Set<String>> mPerTest = new HashMap<>();
         for (String test : tests) {
@@ -312,9 +331,9 @@ public class MethodLevelStaticDepsBuilder{
             if (test2methods.get(test).size() != test2methodsPrime.get(test).size()) {
                 System.out.println("[test2methods]: " + test + " " + test2methods.get(test).size() + " " + test2methodsPrime.get(test).size());
                 verified = false;
-                // Set<String> diffSet = (TreeSet<String>) test2methodsPrime.get(test);
-                // diffSet.removeAll(test2methods.get(test));
-                // System.out.println("[diffSet]: " + diffSet);
+                Set<String> diffSet = test2methodsPrime.get(test);
+                diffSet.removeAll(test2methods.get(test));
+                System.out.println("[diffSet]: " + diffSet);
                 // throw new RuntimeException("[test2methods]: " + test + " " + test2methods.get(test).size() + " " + test2methodsPrime.get(test).size());   
             }
         }

@@ -290,6 +290,11 @@ public class ZLCHelper implements StartsConstants {
                                     long yasglEnd = System.currentTimeMillis();
                                     System.out.println("yasgl time: " + (yasglEnd - yasglStart)/1000.0 + "s");
 
+                                    long anotherYasglStart = System.currentTimeMillis();
+                                    Map<String, Set<String>> test2methodsYasgl = getDepsTC(m2mGraph, allTestClasses);
+                                    long anotherYasglEnd = System.currentTimeMillis();
+                                    System.out.println("another yasgl time: " + (anotherYasglEnd - anotherYasglStart)/1000.0 + "s");
+
                                     long dfsStart = System.currentTimeMillis();
                                     Map<String, Set<String>> test2methodsBFS = getBFSDeps(methodName2MethodNames, allTestClasses);
                                     long dfsEnd = System.currentTimeMillis();
@@ -302,6 +307,8 @@ public class ZLCHelper implements StartsConstants {
 
                                     verify(test2methods, test2methodsDFS);
                                     verify(test2methods, test2methodsBFS);
+                                    verify(test2methodsYasgl, test2methodsDFS);
+                                    verify(test2methodsYasgl, test2methodsBFS);
 
                                     changedMethods = getChangedMethods(allTestClasses);
 //                                System.out .println("changedMethods: " + changedMethods);
