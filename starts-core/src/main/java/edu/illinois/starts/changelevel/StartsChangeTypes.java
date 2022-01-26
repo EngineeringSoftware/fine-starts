@@ -168,7 +168,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public static List<String> listFiles(String dir) {
         List<String> res = new ArrayList<>();
         try {
-            List<Path> pathList =  Files.find(Paths.get(dir), 999, (p, bfa) -> bfa.isRegularFile())
+            List<Path> pathList =  Files.find(Paths.get(dir), 999, (p, bfa) -> !bfa.isDirectory())
                     .collect(Collectors.toList());
             for(Path filePath : pathList){
                 if(!filePath.getFileName().toString().endsWith("class")){

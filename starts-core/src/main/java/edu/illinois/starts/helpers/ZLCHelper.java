@@ -175,7 +175,7 @@ public class ZLCHelper implements StartsConstants {
                     Files.walk(Paths.get("."))
                     .sequential()
                     .filter(x -> !x.toFile().isDirectory())
-                    .filter(x -> x.toFile().getAbsolutePath().endsWith(".class"))
+                    .filter(x -> x.toString().endsWith(".class") && x.toString().contains("target"))
                     .forEach(t -> {
                             try {
                                 File classFile = t.toFile();
@@ -230,62 +230,65 @@ public class ZLCHelper implements StartsConstants {
                             // init
                             allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
                                     .filter(Files::isRegularFile)
-                                    .filter(f -> f.toString().endsWith(".class"))
+                                    .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
                                     .map(f -> f.normalize().toAbsolutePath().toString())
                                     .collect(Collectors.toList()));
                             initClassesPaths = true;
                         }
                         allClassesPaths.remove(url.getPath());
                         boolean finertsChanged = true;
-                        String fileName = FileUtil.urlToSerFilePath(stringURL);
-                        StartsChangeTypes curStartsChangeTypes = null;
-                        try {
-                            StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-                            File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
+                        if (line.contains("target")){
+                            String fileName = FileUtil.urlToSerFilePath(stringURL);
+                            StartsChangeTypes curStartsChangeTypes = null;
+                            try {
+                                StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
+                                File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
 
-                            if (curClassFile.exists()) {
-                                curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
-                                        curClassFile));
-                                if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
-                                    finertsChanged = false;
+                                if (curClassFile.exists()) {
+                                    curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                            curClassFile));
+                                    if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
+                                        finertsChanged = false;
+                                    }
                                 }
+                            } catch (ClassNotFoundException | IOException e) {
+                                throw new RuntimeException(e);
                             }
-                        } catch (ClassNotFoundException | IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                        
 
-                        if (finertsChanged) {
-                            if (mRTSOn) {
-                                if (!initGraph) {
-                                    List<ClassReader> classReaderList = getClassReaders(".");
-                                    // find the methods that each method calls
-                                    findMethodsinvoked(classReaderList);
-                                    // find all the test classes
-                                    for (ClassReader c : classReaderList) {
-                                        if (c.getClassName().contains("Test")) {
-                                            allTestClasses.add(c.getClassName().split("\\$")[0]);
+                            if (finertsChanged) {
+                                if (mRTSOn) {
+                                    if (!initGraph) {
+                                        List<ClassReader> classReaderList = getClassReaders(".");
+                                        // find the methods that each method calls
+                                        findMethodsinvoked(classReaderList);
+                                        // find all the test classes
+                                        for (ClassReader c : classReaderList) {
+                                            if (c.getClassName().contains("Test")) {
+                                                allTestClasses.add(c.getClassName().split("\\$")[0]);
+                                            }
                                         }
-                                    }
-                                    test2methods = getDeps(methodName2MethodNames, allTestClasses);
+                                        test2methods = getDeps(methodName2MethodNames, allTestClasses);
 
-                                    changedMethods = getChangedMethods(allTestClasses);
-//                                System.out .println("changedMethods: " + changedMethods);
-                                    mlChangedClasses = new HashSet<>();
-                                    for (String changedMethod : changedMethods) {
-                                        mlChangedClasses.add(changedMethod.split("#")[0]);
+                                        changedMethods = getChangedMethods(allTestClasses);
+    //                                System.out .println("changedMethods: " + changedMethods);
+                                        mlChangedClasses = new HashSet<>();
+                                        for (String changedMethod : changedMethods) {
+                                            mlChangedClasses.add(changedMethod.split("#")[0]);
+                                        }
+                                        initGraph = true;
                                     }
-                                    initGraph = true;
-                                }
 
-                                for (String test : tests) {
-                                    clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                                    for (String test : tests) {
+                                        clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                                    }
                                 }
+                                affected.addAll(tests);
+                                changedClasses.add(stringURL);
                             }
-                            affected.addAll(tests);
-                            changedClasses.add(stringURL);
-                        }
-                        if (saveMRTSOn && curStartsChangeTypes!=null) {
-                            StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                            if (saveMRTSOn && curStartsChangeTypes!=null) {
+                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                            }
                         }
                     }else{
                         affected.addAll(tests);
@@ -396,7 +399,7 @@ public class ZLCHelper implements StartsConstants {
         try {
             List<Path> classPaths = Files.walk(Paths.get("."))
                     .filter(Files::isRegularFile)
-                    .filter(f -> f.toString().endsWith(".class"))
+                    .filter(f -> f.toString().endsWith(".class") && f.toString().contains("target"))
                     .collect(Collectors.toList());
 
             Set<String> changeTypePaths = new HashSet<>();
