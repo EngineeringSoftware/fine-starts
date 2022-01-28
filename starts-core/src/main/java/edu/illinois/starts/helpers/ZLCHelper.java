@@ -276,7 +276,7 @@ public class ZLCHelper implements StartsConstants {
                                         test2methods = getDeps(methodName2MethodNames, allTestClasses);
                                         long tcEnd = System.currentTimeMillis();
                                         LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (tcEnd - tcStart));
-                                        LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes);
+                                        LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size());
                                         
                                         
                                         long getChangedMethodStart = System.currentTimeMillis();
