@@ -1,6 +1,7 @@
 package edu.illinois.starts.smethods;
 
 import org.ekstazi.asm.ClassReader;
+
 import edu.illinois.starts.smethods.ClassToMethodsCollectorCV;
 import edu.illinois.starts.smethods.MethodCallCollectorCV;
 import edu.illinois.starts.smethods.ConstantPoolParser;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +40,8 @@ public class MethodLevelStaticDepsBuilder{
     public static Map<String, Set<String>> hierarchy_children = new HashMap<>();
     // for every test class, find what method it depends on
     public static Map<String, Set<String>> test2methods = new HashMap<>();
+    // number of nodes in method level dependency graph
+    public static Set<String> numMethodDepNodes = new ConcurrentSkipListSet<String>();
 
     public static void main(String... args) throws Exception {
         // We need at least the argument that points to the root
@@ -188,6 +192,7 @@ public class MethodLevelStaticDepsBuilder{
                 service.submit(() -> {
                     Set<String> invokedMethods = getDepsHelper(methodName2MethodNames, testClass);
                     test2methods.put(testClass, invokedMethods);
+                    numMethodDepNodes.addAll(invokedMethods);
                 });
             }
             service.shutdown();

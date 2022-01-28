@@ -259,6 +259,7 @@ public class ZLCHelper implements StartsConstants {
                             if (finertsChanged) {
                                 if (mRTSOn) {
                                     if (!initGraph) {
+                                        long buildGraphStart = System.currentTimeMillis();
                                         List<ClassReader> classReaderList = getClassReaders(".");
                                         // find the methods that each method calls
                                         findMethodsinvoked(classReaderList);
@@ -268,9 +269,21 @@ public class ZLCHelper implements StartsConstants {
                                                 allTestClasses.add(c.getClassName().split("\\$")[0]);
                                             }
                                         }
-                                        test2methods = getDeps(methodName2MethodNames, allTestClasses);
+                                        long buildGraphEnd = System.currentTimeMillis();
+                                        LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));
 
+                                        long tcStart = System.currentTimeMillis();
+                                        test2methods = getDeps(methodName2MethodNames, allTestClasses);
+                                        long tcEnd = System.currentTimeMillis();
+                                        LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (tcEnd - tcStart));
+                                        LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes);
+                                        
+                                        
+                                        long getChangedMethodStart = System.currentTimeMillis();
                                         changedMethods = getChangedMethods(allTestClasses);
+                                        long getChangedMethodEnd = System.currentTimeMillis();
+                                        LOGGER.log(Level.FINEST, "FineSTARTSChangedMethods: " + (getChangedMethodEnd - getChangedMethodStart));
+
     //                                System.out .println("changedMethods: " + changedMethods);
                                         mlChangedClasses = new HashSet<>();
                                         for (String changedMethod : changedMethods) {
@@ -334,7 +347,9 @@ public class ZLCHelper implements StartsConstants {
                 }
             }
         }
-
+        LOGGER.log(Level.FINEST, "FineSTARTSSaveChangeTypes: " + StartsChangeTypes.saveChangeTypes);
+        LOGGER.log(Level.FINEST, "FineSTARTSNumChangeTypes: " + StartsChangeTypes.numChangeTypes);
+        LOGGER.log(Level.FINEST, "FineSTARTSSizeChangeTypes: " + StartsChangeTypes.sizeChangeTypes);
         nonAffected.removeAll(affected);
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);

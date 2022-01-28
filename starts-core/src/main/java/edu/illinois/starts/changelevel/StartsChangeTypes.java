@@ -12,8 +12,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static edu.illinois.starts.changelevel.FineTunedBytecodeCleaner.removeDebugInfo;
-
 public class StartsChangeTypes implements Serializable, Comparable<StartsChangeTypes>{
     private static final long serialVersionUID = 1234567L;
     public transient static HashMap<String, Set<String>> hierarchyGraph;
@@ -22,6 +20,9 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public transient TreeMap<String, String> instanceMethodMap;
     public transient TreeMap<String, String> staticMethodMap;
     public static transient HashSet<String> testClasses;
+    public static long saveChangeTypes;
+    public static long numChangeTypes;
+    public static long sizeChangeTypes;
 
     public TreeMap<String, String> constructorsMap;
     public TreeMap<String, String> methodMap;
@@ -64,8 +65,11 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     }
 
     public static void toFile(String fileName, StartsChangeTypes c){
+        numChangeTypes += 1;
+        long toFileStart = System.currentTimeMillis();
         try {
             File file = new File(fileName);
+            sizeChangeTypes += file.length();
             if (!file.exists()){
                 File dir = new File(file.getParent());
                 if (!dir.exists()) {
@@ -83,6 +87,8 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         } catch (IOException i) {
             i.printStackTrace();
         }
+        long toFileEnd = System.currentTimeMillis();
+        saveChangeTypes = toFileEnd - toFileStart;
     }
 
     @Override
