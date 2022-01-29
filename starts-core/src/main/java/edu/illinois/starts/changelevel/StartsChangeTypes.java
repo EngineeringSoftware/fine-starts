@@ -20,9 +20,9 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public transient TreeMap<String, String> instanceMethodMap;
     public transient TreeMap<String, String> staticMethodMap;
     public static transient HashSet<String> testClasses;
-    public static long saveChangeTypes;
-    public static long numChangeTypes;
-    public static long sizeChangeTypes;
+    public static long saveChangeTypes = 0;
+    public static long numChangeTypes = 0;
+    public static long sizeChangeTypes = 0;
 
     public TreeMap<String, String> constructorsMap;
     public TreeMap<String, String> methodMap;
@@ -88,7 +88,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             i.printStackTrace();
         }
         long toFileEnd = System.currentTimeMillis();
-        saveChangeTypes = toFileEnd - toFileStart;
+        saveChangeTypes += toFileEnd - toFileStart;
     }
 
     @Override

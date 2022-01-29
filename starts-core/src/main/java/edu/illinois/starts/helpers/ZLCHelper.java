@@ -46,6 +46,7 @@ public class ZLCHelper implements StartsConstants {
     // method level changed classes
     private static Set<String> mlChangedClasses = new HashSet<>();
     private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>( );
+    private static long shouldTestRunTime = 0;
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -277,8 +278,7 @@ public class ZLCHelper implements StartsConstants {
                                         long tcEnd = System.currentTimeMillis();
                                         LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (tcEnd - tcStart));
                                         LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size());
-                                        
-                                        
+                                                  
                                         long getChangedMethodStart = System.currentTimeMillis();
                                         changedMethods = getChangedMethods(allTestClasses);
                                         long getChangedMethodEnd = System.currentTimeMillis();
@@ -328,7 +328,10 @@ public class ZLCHelper implements StartsConstants {
 
         if (fineRTSOn){
             if (mRTSOn) {
+                long shouldTestRunStart = System.currentTimeMillis();
                 affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
+                long shouldTestRunEnd = System.currentTimeMillis();
+                shouldTestRunTime += shouldTestRunEnd - shouldTestRunStart;
             }
 //            System.out.println("affected: " + affected);
             if (allClassesPaths!=null) {
@@ -350,6 +353,7 @@ public class ZLCHelper implements StartsConstants {
         LOGGER.log(Level.FINEST, "FineSTARTSSaveChangeTypes: " + StartsChangeTypes.saveChangeTypes);
         LOGGER.log(Level.FINEST, "FineSTARTSNumChangeTypes: " + StartsChangeTypes.numChangeTypes);
         LOGGER.log(Level.FINEST, "FineSTARTSSizeChangeTypes: " + StartsChangeTypes.sizeChangeTypes);
+        LOGGER.log(Level.FINEST, "FineSTARTSShouldTestRunTime: " + shouldTestRunTime);
         nonAffected.removeAll(affected);
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
