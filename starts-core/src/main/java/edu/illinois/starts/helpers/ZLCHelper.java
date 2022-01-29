@@ -356,7 +356,7 @@ public class ZLCHelper implements StartsConstants {
         LOGGER.log(Level.FINEST, "FineSTARTSShouldTestRunTime: " + shouldTestRunTime);
         nonAffected.removeAll(affected);
         long end = System.currentTimeMillis();
-        LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start) + MILLISECOND);
+        LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start));
         return new Pair<>(nonAffected, changedClasses);
     }
 
