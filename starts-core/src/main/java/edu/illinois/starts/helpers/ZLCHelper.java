@@ -47,6 +47,9 @@ public class ZLCHelper implements StartsConstants {
     private static Set<String> mlChangedClasses = new HashSet<>();
     private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>( );
     private static long shouldTestRunTime = 0;
+    private static long parseChangeTypeTime = 0;
+    private static long fineRTSOverheadTime = 0;
+    private static long methodAnalysisOverheadTime = 0;
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -227,18 +230,23 @@ public class ZLCHelper implements StartsConstants {
                 if (!newCheckSum.equals(oldCheckSum)) {
 //                  TODO: add checking ChangeType here
                     if (fineRTSOn) {
+                        long fineRTSOverheadStart = System.currentTimeMillis();
                         if (!initClassesPaths) {
                             // init
+                            long findAllClassesStart = System.currentTimeMillis();
                             allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
                                     .filter(Files::isRegularFile)
                                     .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
                                     .map(f -> f.normalize().toAbsolutePath().toString())
                                     .collect(Collectors.toList()));
                             initClassesPaths = true;
+                            long findAllClassesEnd = System.currentTimeMillis();
+                            LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
                         }
                         allClassesPaths.remove(url.getPath());
                         boolean finertsChanged = true;
                         if (line.contains("target")){
+                            long parseChangeTypeStart = System.currentTimeMillis();
                             String fileName = FileUtil.urlToSerFilePath(stringURL);
                             StartsChangeTypes curStartsChangeTypes = null;
                             try {
@@ -255,10 +263,12 @@ public class ZLCHelper implements StartsConstants {
                             } catch (ClassNotFoundException | IOException e) {
                                 throw new RuntimeException(e);
                             }
-                        
+                            long parseChangeTypeEnd = System.currentTimeMillis();
+                            parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;
 
                             if (finertsChanged) {
                                 if (mRTSOn) {
+                                    long methodLevelAnalysisOverheadStart = System.currentTimeMillis();
                                     if (!initGraph) {
                                         long buildGraphStart = System.currentTimeMillis();
                                         List<ClassReader> classReaderList = getClassReaders(".");
@@ -295,6 +305,8 @@ public class ZLCHelper implements StartsConstants {
                                     for (String test : tests) {
                                         clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
                                     }
+                                    long methodLevelAnalysisOverheadEnd = System.currentTimeMillis();
+                                    methodAnalysisOverheadTime += methodLevelAnalysisOverheadEnd - methodLevelAnalysisOverheadStart;
                                 }
                                 affected.addAll(tests);
                                 changedClasses.add(stringURL);
@@ -303,6 +315,8 @@ public class ZLCHelper implements StartsConstants {
                                 StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }
                         }
+                        long fineRTSOverheadEnd = System.currentTimeMillis();
+                        fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
                     }else{
                         affected.addAll(tests);
                         changedClasses.add(stringURL);
@@ -327,21 +341,26 @@ public class ZLCHelper implements StartsConstants {
         }
 
         if (fineRTSOn){
+            long fineRTSOverheadStart = System.currentTimeMillis();
             if (mRTSOn) {
                 long shouldTestRunStart = System.currentTimeMillis();
                 affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
                 long shouldTestRunEnd = System.currentTimeMillis();
                 shouldTestRunTime += shouldTestRunEnd - shouldTestRunStart;
+                methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart;
             }
 //            System.out.println("affected: " + affected);
             if (allClassesPaths!=null) {
                 // update the newly add ChangeTyeps
                 for (String remainingPath : allClassesPaths) {
                     try {
+                        long parseChangeTypeStart = System.currentTimeMillis();
                         File remainingFile = new File(remainingPath);
                         String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
                         StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                 remainingFile));
+                        long parseChangeTypeEnd = System.currentTimeMillis();
+                        parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;
                         if (saveMRTSOn && curStartsChangeTypes != null)
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                     } catch (IOException e) {
@@ -349,14 +368,20 @@ public class ZLCHelper implements StartsConstants {
                     }
                 }
             }
+            long fineRTSOverheadEnd = System.currentTimeMillis();
+            fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
         }
+
+        nonAffected.removeAll(affected);
+        long end = System.currentTimeMillis();
+        LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start));
         LOGGER.log(Level.FINEST, "FineSTARTSSaveChangeTypes: " + StartsChangeTypes.saveChangeTypes);
         LOGGER.log(Level.FINEST, "FineSTARTSNumChangeTypes: " + StartsChangeTypes.numChangeTypes);
         LOGGER.log(Level.FINEST, "FineSTARTSSizeChangeTypes: " + StartsChangeTypes.sizeChangeTypes);
         LOGGER.log(Level.FINEST, "FineSTARTSShouldTestRunTime: " + shouldTestRunTime);
-        nonAffected.removeAll(affected);
-        long end = System.currentTimeMillis();
-        LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start));
+        LOGGER.log(Level.FINEST, "FineSTARTSparseChangeTypeTime: " + parseChangeTypeTime);
+        LOGGER.log(Level.FINEST, "FineSTARTSOverheadTime: " + (fineRTSOverheadTime - methodAnalysisOverheadTime));
+        LOGGER.log(Level.FINEST, "FineSTARTSMethodAnalysisOverheadTime: " + methodAnalysisOverheadTime);
         return new Pair<>(nonAffected, changedClasses);
     }
 
