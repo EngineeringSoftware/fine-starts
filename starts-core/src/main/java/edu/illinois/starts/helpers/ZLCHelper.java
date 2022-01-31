@@ -38,8 +38,10 @@ public class ZLCHelper implements StartsConstants {
     private static final Logger LOGGER = Logger.getGlobal();
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
+
     private static Set<String> allTestClasses = new HashSet<>();
-    private static Set<String> allClassesPaths = new HashSet<>();
+    private static Set<String> newClassesPaths = new HashSet<>();
+    private static Set<String> oldClassesPaths = new HashSet<>();
     private static boolean initGraph = false;
     private static boolean initClassesPaths = false;
     private static Set<String> changedMethods = new HashSet<>();
@@ -50,6 +52,7 @@ public class ZLCHelper implements StartsConstants {
     private static long parseChangeTypeTime = 0;
     private static long fineRTSOverheadTime = 0;
     private static long methodAnalysisOverheadTime = 0;
+    private static long changedMethodTime = 0;
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -149,24 +152,6 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
-    public static List<String> listFiles(String dir) {
-        List<String> res = new ArrayList<>();
-        try {
-            List<Path> pathList =  Files.find(Paths.get(dir), 999, (p, bfa) -> bfa.isRegularFile())
-                    .collect(Collectors.toList());
-            for(Path filePath : pathList){
-                if(!filePath.getFileName().toString().endsWith("class")){
-                    continue;
-                }
-                String curClassPath = filePath.getParent().toString()+"/"+filePath.getFileName().toString();
-                res.add(curClassPath);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return res;
-    }
-
     public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
@@ -191,7 +176,7 @@ public class ZLCHelper implements StartsConstants {
                                     // System.out.println("successfully saved starts change types for " + fileName);
                                 }
                             } catch(IOException e) {
-                                System.out.println("Cannot parse file: "+t);
+                                // System.out.println("Cannot parse file: "+t);
                             }
                     });
                 } catch (IOException e) {
@@ -226,15 +211,17 @@ public class ZLCHelper implements StartsConstants {
                 Set<String> tests = parts.length == 3 ? fromCSV(parts[2]) : new HashSet<String>();
                 nonAffected.addAll(tests);
                 URL url = new URL(stringURL);
+                if (fineRTSOn){
+                    oldClassesPaths.add(url.getPath());
+                }
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
                 if (!newCheckSum.equals(oldCheckSum)) {
-//                  TODO: add checking ChangeType here
                     if (fineRTSOn) {
                         long fineRTSOverheadStart = System.currentTimeMillis();
                         if (!initClassesPaths) {
                             // init
                             long findAllClassesStart = System.currentTimeMillis();
-                            allClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                            newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
                                     .filter(Files::isRegularFile)
                                     .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
                                     .map(f -> f.normalize().toAbsolutePath().toString())
@@ -243,7 +230,6 @@ public class ZLCHelper implements StartsConstants {
                             long findAllClassesEnd = System.currentTimeMillis();
                             LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
                         }
-                        allClassesPaths.remove(url.getPath());
                         boolean finertsChanged = true;
                         if (line.contains("target")){
                             long parseChangeTypeStart = System.currentTimeMillis();
@@ -258,7 +244,17 @@ public class ZLCHelper implements StartsConstants {
                                             curClassFile));
                                     if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
                                         finertsChanged = false;
+                                    }                                
+                                    long getChangedMethodStart = System.currentTimeMillis();
+                                    Set<String> curChangedMethods = getChangedMethods(preStartsChangeTypes, curStartsChangeTypes);
+                                    // System.out.println(url);
+                                    // System.out.println("curChangedMethods: " + curChangedMethods);
+                                    changedMethods.addAll(curChangedMethods);
+                                    for (String changedMethod : curChangedMethods) {
+                                        mlChangedClasses.add(changedMethod.split("#")[0]);
                                     }
+                                    long getChangedMethodEnd = System.currentTimeMillis();
+                                    changedMethodTime += (getChangedMethodEnd - getChangedMethodStart);
                                 }
                             } catch (ClassNotFoundException | IOException e) {
                                 throw new RuntimeException(e);
@@ -289,16 +285,6 @@ public class ZLCHelper implements StartsConstants {
                                         LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (tcEnd - tcStart));
                                         LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size());
                                                   
-                                        long getChangedMethodStart = System.currentTimeMillis();
-                                        changedMethods = getChangedMethods(allTestClasses);
-                                        long getChangedMethodEnd = System.currentTimeMillis();
-                                        LOGGER.log(Level.FINEST, "FineSTARTSChangedMethods: " + (getChangedMethodEnd - getChangedMethodStart));
-
-    //                                System.out .println("changedMethods: " + changedMethods);
-                                        mlChangedClasses = new HashSet<>();
-                                        for (String changedMethod : changedMethods) {
-                                            mlChangedClasses.add(changedMethod.split("#")[0]);
-                                        }
                                         initGraph = true;
                                     }
 
@@ -313,7 +299,7 @@ public class ZLCHelper implements StartsConstants {
                             }
                             if (saveMRTSOn && curStartsChangeTypes!=null) {
                                 StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                            }
+                            }  
                         }
                         long fineRTSOverheadEnd = System.currentTimeMillis();
                         fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
@@ -324,6 +310,16 @@ public class ZLCHelper implements StartsConstants {
                 }
                 if (newCheckSum.equals("-1")) {
                     // a class was deleted or auto-generated, no need to track it in zlc
+                    // delete useless classes
+                    if (fineRTSOn){
+                        try{
+                            // System.out.println("Deleting " + stringURL);
+                            String preChangeTypePath = FileUtil.urlToSerFilePath(url.toExternalForm());
+                            new File(preChangeTypePath).delete();
+                        }catch (Exception e){
+                            LOGGER.log(Level.WARNING, "Failed to delete file: " + url.toExternalForm());
+                        }
+                    }
                     LOGGER.log(Level.FINEST, "Ignoring: " + url);
                     continue;
                 }
@@ -350,9 +346,11 @@ public class ZLCHelper implements StartsConstants {
                 methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart;
             }
 //            System.out.println("affected: " + affected);
-            if (allClassesPaths!=null) {
+            if (newClassesPaths!=null) {
+                newClassesPaths.removeAll(oldClassesPaths);
+                // System.out.println("new class paths: " + newClassesPaths);
                 // update the newly add ChangeTyeps
-                for (String remainingPath : allClassesPaths) {
+                for (String remainingPath : newClassesPaths) {
                     try {
                         long parseChangeTypeStart = System.currentTimeMillis();
                         File remainingFile = new File(remainingPath);
@@ -382,6 +380,7 @@ public class ZLCHelper implements StartsConstants {
         LOGGER.log(Level.FINEST, "FineSTARTSparseChangeTypeTime: " + parseChangeTypeTime);
         LOGGER.log(Level.FINEST, "FineSTARTSOverheadTime: " + (fineRTSOverheadTime - methodAnalysisOverheadTime));
         LOGGER.log(Level.FINEST, "FineSTARTSMethodAnalysisOverheadTime: " + methodAnalysisOverheadTime);
+        LOGGER.log(Level.FINEST, "FineSTARTSChangedMethods: " + changedMethodTime);
         return new Pair<>(nonAffected, changedClasses);
     }
 
@@ -400,7 +399,6 @@ public class ZLCHelper implements StartsConstants {
         if (mlUsedClasses.containsAll(clModifiedClasses)){
             // method level
             for (String clModifiedClass : clModifiedClasses){
-                // todo
                 for (String method : changedMethods){
                     if (method.startsWith(clModifiedClass) && mlUsedMethods.contains(method)){
                         return true;
@@ -435,6 +433,29 @@ public class ZLCHelper implements StartsConstants {
             }
         }
         return affectedTests;
+    }
+
+    public static Set<String> getChangedMethods(StartsChangeTypes preChangeTypes, StartsChangeTypes curChangeTypes){
+        Set<String> res = new HashSet<>();
+        if (preChangeTypes == null){
+            // does not exist before
+            if (curChangeTypes.curClass.contains("Test")) {
+                Set<String> methods = new HashSet<>();
+                curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                        m.substring(0, m.indexOf(")") + 1)));
+                curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                        m.substring(0, m.indexOf(")") + 1)));
+                res.addAll(methods);
+            }
+        }else {
+            if (!preChangeTypes.equals(curChangeTypes)) {
+                res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
+                        curChangeTypes.methodMap, curChangeTypes.curClass));
+                res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
+                        curChangeTypes.constructorsMap, curChangeTypes.curClass));
+            }
+        }    
+        return res;
     }
 
     public static Set<String> getChangedMethods(Set<String> allTests){
@@ -480,15 +501,13 @@ public class ZLCHelper implements StartsConstants {
 
                     if (!preChangeTypes.equals(curChangeTypes)) {
                         res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
-                                curChangeTypes.methodMap, curChangeTypes.curClass, allTests));
+                                curChangeTypes.methodMap, curChangeTypes.curClass));
                         res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
-                                curChangeTypes.constructorsMap, curChangeTypes.curClass, allTests));
+                                curChangeTypes.constructorsMap, curChangeTypes.curClass));
                     }
                 }
             }
-            for(String preChangeTypePath : changeTypePaths){
-                new File(preChangeTypePath).delete();
-            }
+
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -496,44 +515,8 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-
-    private static Set<String> getChangedMethod(String urlExternalForm, Set<String> allTests){
-        Set<String> res = new HashSet<>();
-
-        try {
-            String fileName = FileUtil.urlToSerFilePath(urlExternalForm);
-            File preStartsChangeTypeFile = new File(urlExternalForm.substring(urlExternalForm.indexOf("/")));
-            StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(preStartsChangeTypeFile));
-            if (!preStartsChangeTypeFile.exists()){
-                // does not exist before
-                if (allTests.contains(curStartsChangeTypes.curClass)) {
-                    Set<String> methods = new HashSet<>();
-                    curStartsChangeTypes.methodMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
-                            m.substring(0, m.indexOf(")") + 1)));
-                    curStartsChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curStartsChangeTypes.curClass + "#" +
-                            m.substring(0, m.indexOf(")") + 1)));
-                    res.addAll(methods);
-                }
-//                    ChangeTypes.toFile(changeTypePath, curChangeTypes);
-            }else {
-                StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-
-                if (!preStartsChangeTypes.equals(curStartsChangeTypes)) {
-//                        ChangeTypes.toFile(changeTypePath, curChangeTypes);
-                    res.addAll(getChangedMethodsPerChangeType(preStartsChangeTypes.methodMap,
-                            curStartsChangeTypes.methodMap, curStartsChangeTypes.curClass, allTests));
-                    res.addAll(getChangedMethodsPerChangeType(preStartsChangeTypes.constructorsMap,
-                            curStartsChangeTypes.constructorsMap, curStartsChangeTypes.curClass, allTests));
-                }
-            }
-        } catch (ClassNotFoundException | IOException e) {
-            throw new RuntimeException(e);
-        }
-        return res;
-    }
-
     static Set<String> getChangedMethodsPerChangeType(TreeMap<String, String> oldMethods, TreeMap<String, String> newMethods,
-                                                      String className, Set<String> allTests){
+                                                      String className){
         Set<String> res = new HashSet<>();
         //TODO: consider adding test class
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
@@ -556,7 +539,7 @@ public class ZLCHelper implements StartsConstants {
         }
         // className is Test
         String outerClassName = className.split("\\$")[0];
-        if (allTests.contains(outerClassName)){
+        if (outerClassName.contains("Test")){
             for (String sig : newMethods.keySet()){
                 res.add(className + "#" + sig.substring(0, sig.indexOf(")")+1));
             }
