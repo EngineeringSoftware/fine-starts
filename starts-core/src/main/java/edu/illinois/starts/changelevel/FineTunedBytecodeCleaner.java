@@ -427,15 +427,9 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
                     }
                 }
 
-                System.out.println("class: "+curClassPath);
-
-                System.out.println("pre instance method: "+ preStartsChangeTypes.instanceMethodMap.size());
-                System.out.println("cur instance method: "+ curStartsChangeTypes.instanceMethodMap.size());
                 List<String> instanceMethodChange = methodChange(preStartsChangeTypes.instanceMethodMap, curStartsChangeTypes.instanceMethodMap, false);
                 if (instanceMethodChange.size() > 0)
                     res.addAll(instanceMethodChange);
-                System.out.println("pre static method: "+ preStartsChangeTypes.staticMethodMap.size());
-                System.out.println("cur static method: "+ curStartsChangeTypes.staticMethodMap.size());
                 List<String> staticMethodChange = methodChange(preStartsChangeTypes.staticMethodMap, curStartsChangeTypes.staticMethodMap, true);
                 if (staticMethodChange.size() > 0){
                     res.addAll(staticMethodChange);
@@ -463,12 +457,10 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
             } else if (oldMethods.containsKey(sig) && newMethods.containsValue(oldMethods.get(sig))){
                 newMethods.values().remove(oldMethods.get(sig));
                 oldMethods.remove(sig);
-                System.out.println("change sig: " + sig);
                 res.add(CHANGE_SIGNATURE);
             } else if (newMethods.containsKey(sig) && oldMethods.containsValue(newMethods.get(sig))){
                 oldMethods.values().remove(newMethods.get(sig));
                 newMethods.remove(sig);
-                System.out.println("change sig: " + sig);
                 res.add(CHANGE_SIGNATURE);
             }
         }
@@ -476,10 +468,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
         if (oldMethods.size() == 0 && newMethods.size() == 0){
             return res;
         }
-
-        System.out.println("isStatic: "+isStatic);
-        System.out.println("old method size: "+oldMethods.size());
-        System.out.println("new method size: "+newMethods.size());
 
         // one methodmap is empty then the left must be added or deleted.
         if (oldMethods.size() == 0){
@@ -507,7 +495,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
 
         if (oldMethods.size()>0 && newMethods.size()>0){
             if (!isStatic){
-                System.out.println("change instance method");
                 res.add(REMOVE_INSTANCE_METHOD);
                 res.add(ADD_INSTANCE_METHOD);
                 return res;
@@ -611,7 +598,7 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
             }
             // generate json file
             String res = gson.toJson(resLinkedHashMap, LinkedHashMap.class);
-            System.out.println(res);
+            // System.out.println(res);
 //            try {
 //                Files.write(Paths.get(Macros.resultFolderPath + "/" + projectName + ".json"), res.getBytes());
 //            } catch (Exception e) {

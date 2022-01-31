@@ -337,7 +337,6 @@ public class ZLCHelper implements StartsConstants {
         }
 
         if (fineRTSOn){
-            long fineRTSOverheadStart = System.currentTimeMillis();
             if (mRTSOn) {
                 long shouldTestRunStart = System.currentTimeMillis();
                 affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
@@ -346,6 +345,7 @@ public class ZLCHelper implements StartsConstants {
                 methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart;
             }
 //            System.out.println("affected: " + affected);
+            long fineRTSOverheadStart = System.currentTimeMillis();
             if (newClassesPaths!=null) {
                 newClassesPaths.removeAll(oldClassesPaths);
                 // System.out.println("new class paths: " + newClassesPaths);
