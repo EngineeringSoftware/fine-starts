@@ -515,9 +515,11 @@ public class ZLCHelper implements StartsConstants {
         return res;
     }
 
-    static Set<String> getChangedMethodsPerChangeType(TreeMap<String, String> oldMethods, TreeMap<String, String> newMethods,
+    static Set<String> getChangedMethodsPerChangeType(TreeMap<String, String> oldMethodsPara, TreeMap<String, String> newMethodsPara,
                                                       String className){
         Set<String> res = new HashSet<>();
+        TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
+        TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
         //TODO: consider adding test class
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
         methodSig.addAll(newMethods.keySet());
