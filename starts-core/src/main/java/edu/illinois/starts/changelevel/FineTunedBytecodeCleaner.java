@@ -3,6 +3,7 @@ package edu.illinois.starts.changelevel;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.ekstazi.asm.*;
+import org.ekstazi.hash.Hasher;
 
 import edu.illinois.starts.helpers.FileUtil;
 
@@ -94,22 +95,22 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
                     }
                 }
                 Collections.sort(excep);
-                exceptionMap.put(name+desc, excep.toString());
+                exceptionMap.put(name+desc, hashString(excep.toString()));
 
                 if((name+desc).equals("<clinit>()V")) {
                     // initialize static field
-                    constructorsMap.put(methodSignature, sortedString(methodBody));
+                    constructorsMap.put(methodSignature, hashSortedString(methodBody));
                 } else{
                     boolean isStatic =  (access & Opcodes.ACC_STATIC) != 0 ;
                     if(isStatic){
-                        staticMethodMap.put(methodSignature, methodBody);
-                        methodMap.put(methodSignature, methodBody);
+                        staticMethodMap.put(methodSignature, hashString(methodBody));
+                        methodMap.put(methodSignature, hashString(methodBody));
                     }else{
                         if (methodSignature.contains("<init>")) {
-                            constructorsMap.put(methodSignature, sortedString(methodBody));
+                            constructorsMap.put(methodSignature, hashSortedString(methodBody));
                         }else{
-                            instanceMethodMap.put(methodSignature, methodBody);
-                            methodMap.put(methodSignature, methodBody);
+                            instanceMethodMap.put(methodSignature, hashString(methodBody));
+                            methodMap.put(methodSignature, hashString(methodBody));
                         }
                     }
                 }
@@ -268,10 +269,19 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
         return exceptionMap;
     }
 
+    private String hashSortedString(String str){
+        // hashByteArray
+        byte[] bytes = str.getBytes();
+        Arrays.sort(bytes);
+        return String.valueOf(Hasher.hashString(new String(bytes)));
+        // String sortedString = str.chars().sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+        // return String.valueOf(Hasher.hashString(sortedString));
+        // return str.chars() // IntStream
+        //         .sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+    }
 
-    private String sortedString(String str){
-        return str.chars() // IntStream
-                .sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+    private String hashString(String str){
+        return String.valueOf(Hasher.hashString(str));
     }
 
     public static StartsChangeTypes removeDebugInfo(byte[] bytes) {

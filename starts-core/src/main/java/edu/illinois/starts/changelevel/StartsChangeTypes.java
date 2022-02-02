@@ -143,7 +143,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         if (testClasses == null){
             testClasses = listTestClasses();
         }
-        modified = methodChange((TreeMap<String, String>) this.methodMap.clone(), (TreeMap<String, String>) other.methodMap.clone(), hasHierarchy);
+        modified = methodChange(this.methodMap, other.methodMap, hasHierarchy);
         return !modified;
     }
 
@@ -239,7 +239,9 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         }
     }
 
-    private boolean methodChange(TreeMap<String, String> newMethods, TreeMap<String, String> oldMethods, boolean hasHierarchy){
+    private boolean methodChange(TreeMap<String, String> newMethodsPara, TreeMap<String, String> oldMethodsPara, boolean hasHierarchy){
+        TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
+        TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
         methodSig.addAll(newMethods.keySet());
         for (String sig : methodSig){
@@ -276,5 +278,13 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     @Override
     public int compareTo(StartsChangeTypes o) {
         return this.urlExternalForm.compareTo(o.urlExternalForm);
+    }
+
+    @Override
+    public String toString() {
+        return "StartsChangeTypes{" +
+                ", curClass='" + curClass + '\'' +
+                ", constructorsMap=" + constructorsMap +
+                '}';
     }
 }
