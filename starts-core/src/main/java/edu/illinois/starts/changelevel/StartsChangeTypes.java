@@ -102,7 +102,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         final StartsChangeTypes other = (StartsChangeTypes) obj;
 
         if (hierarchyGraph == null){
-            // todo: multi module projects
+            // TODO: multi module projects
             getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/classes"));
             getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/test-classes"));
         }
@@ -157,7 +157,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
                 for (String currentTest : currentTests){
                     testClasses.add(currentTest.replace(".", "/"));
                 }
-//                testClasses.addAll(Arrays.asList(currentTests));
             }
         } catch (FileNotFoundException e) {
             System.out.println("all-tests not found");
@@ -215,7 +214,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             hierarchyGraph = new HashMap<>();
         }
         hierarchyGraph.putAll(graph);
-
 //        System.out.println("[log]hierarchyGraph: "+hierarchyGraph.keySet());
     }
 

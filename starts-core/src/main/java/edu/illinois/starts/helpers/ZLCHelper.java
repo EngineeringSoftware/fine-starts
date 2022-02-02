@@ -28,7 +28,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-
 /**
  * Utility methods for dealing with the .zlc format.
  */
@@ -157,10 +156,10 @@ public class ZLCHelper implements StartsConstants {
         File zlc = new File(artifactsDir, zlcFile);
 
         if (!zlc.exists()) {
-            //TODO: first run
+            // first run
             if (saveMRTSOn && fineRTSOn) {
                 try {
-                    //todo: save default ChangeTypes
+                    // save default ChangeTypes
                     Files.walk(Paths.get("."))
                     .sequential()
                     .filter(x -> !x.toFile().isDirectory())
@@ -218,28 +217,28 @@ public class ZLCHelper implements StartsConstants {
                 if (!newCheckSum.equals(oldCheckSum)) {
                     if (fineRTSOn) {
                         long fineRTSOverheadStart = System.currentTimeMillis();
-                        if (!initClassesPaths) {
-                            // init
-                            long findAllClassesStart = System.currentTimeMillis();
-                            newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
-                                    .filter(Files::isRegularFile)
-                                    .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
-                                    .map(f -> f.normalize().toAbsolutePath().toString())
-                                    .collect(Collectors.toList()));
-                            initClassesPaths = true;
-                            long findAllClassesEnd = System.currentTimeMillis();
-                            LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
-                        }
-                        boolean finertsChanged = true;
                         if (line.contains("target")){
+                            if (!initClassesPaths) {
+                                // init
+                                long findAllClassesStart = System.currentTimeMillis();
+                                newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
+                                        .filter(Files::isRegularFile)
+                                        .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
+                                        .map(f -> f.normalize().toAbsolutePath().toString())
+                                        .collect(Collectors.toList()));
+                                initClassesPaths = true;
+                                long findAllClassesEnd = System.currentTimeMillis();
+                                LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
+                            }
+                            boolean finertsChanged = true;
+                        
                             long parseChangeTypeStart = System.currentTimeMillis();
                             String fileName = FileUtil.urlToSerFilePath(stringURL);
                             StartsChangeTypes curStartsChangeTypes = null;
                             try {
-                                StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
                                 File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
-
                                 if (curClassFile.exists()) {
+                                    StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
                                     curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                             curClassFile));
                                     if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
@@ -300,6 +299,9 @@ public class ZLCHelper implements StartsConstants {
                             if (saveMRTSOn && curStartsChangeTypes!=null) {
                                 StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
                             }  
+                        }else{
+                            affected.addAll(tests);
+                            changedClasses.add(stringURL);  
                         }
                         long fineRTSOverheadEnd = System.currentTimeMillis();
                         fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
@@ -353,14 +355,15 @@ public class ZLCHelper implements StartsConstants {
                 for (String remainingPath : newClassesPaths) {
                     try {
                         long parseChangeTypeStart = System.currentTimeMillis();
-                        File remainingFile = new File(remainingPath);
-                        String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
+                        File remainingFile = new File(remainingPath);      
                         StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
                                 remainingFile));
                         long parseChangeTypeEnd = System.currentTimeMillis();
                         parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;
-                        if (saveMRTSOn && curStartsChangeTypes != null)
+                        if (saveMRTSOn && curStartsChangeTypes != null){
+                            String fileName = FileUtil.urlToSerFilePath(remainingFile.toURI().toURL().toExternalForm());
                             StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -369,7 +372,6 @@ public class ZLCHelper implements StartsConstants {
             long fineRTSOverheadEnd = System.currentTimeMillis();
             fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
         }
-
         nonAffected.removeAll(affected);
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start));
@@ -527,7 +529,7 @@ public class ZLCHelper implements StartsConstants {
         Set<String> res = new HashSet<>();
         TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
         TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
-        //TODO: consider adding test class
+        // consider adding test class
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
         methodSig.addAll(newMethods.keySet());
         for (String sig : methodSig){
