@@ -117,8 +117,8 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             return false;
         }
 
-        TreeMap<String, String> newConstructor = this.constructorsMap;
-        TreeMap<String, String> oldConstructor = other.constructorsMap;
+        TreeMap<String, String> newConstructor = other.constructorsMap;
+        TreeMap<String, String> oldConstructor = this.constructorsMap;
 
         if (newConstructor.size() != oldConstructor.size()){
             return false;
@@ -133,8 +133,8 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
 
         // if there is method change
         boolean hasHierarchy = false;
-        String newCurClass = this.curClass;
-        String oldCurClass = other.curClass;
+        String newCurClass = other.curClass;
+        String oldCurClass = this.curClass;
         if (StartsChangeTypes.hierarchyGraph.containsKey(newCurClass) || StartsChangeTypes.hierarchyGraph.containsKey(oldCurClass)){
             hasHierarchy =  true;
         }
@@ -237,18 +237,10 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         }
     }
 
-    private boolean methodChange(TreeMap<String, String> newMethodsPara, TreeMap<String, String> oldMethodsPara, boolean hasHierarchy){
-        if (newMethodsPara == null && oldMethodsPara == null){
-            return false;
-        }else if(newMethodsPara == null || oldMethodsPara == null){
-            if (!hasHierarchy && !testClasses.contains(this.curClass)){
-                return false;
-            }else{
-                return true;
-            }
-        }
-        TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
+    private boolean methodChange(TreeMap<String, String> oldMethodsPara, TreeMap<String, String> newMethodsPara, boolean hasHierarchy){
         TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
+        TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
+       
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
         methodSig.addAll(newMethods.keySet());
         for (String sig : methodSig){
@@ -274,11 +266,12 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
 
         // one methodmap is empty then the left must be added or deleted.
         if (!hasHierarchy && (oldMethods.size() == 0 || newMethods.size() == 0)){
-            if (testClasses.contains(this.curClass)){
+            // the class is test class and the test class adds/revises test methods
+            // if (testClasses.contains(this.curClass) && newMethods.size()>0){
+            if (this.curClass.contains("Test") && newMethods.size()>0){
                 return true;
-            }else{
-                return false;
             }
+            return false;
         }
 
         return true;
