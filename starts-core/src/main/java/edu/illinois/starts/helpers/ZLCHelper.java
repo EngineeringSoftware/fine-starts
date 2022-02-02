@@ -441,7 +441,9 @@ public class ZLCHelper implements StartsConstants {
             // does not exist before
             if (curChangeTypes.curClass.contains("Test")) {
                 Set<String> methods = new HashSet<>();
-                curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                curChangeTypes.instanceMethodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                        m.substring(0, m.indexOf(")") + 1)));
+                curChangeTypes.staticMethodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
                         m.substring(0, m.indexOf(")") + 1)));
                 curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
                         m.substring(0, m.indexOf(")") + 1)));
@@ -449,8 +451,10 @@ public class ZLCHelper implements StartsConstants {
             }
         }else {
             if (!preChangeTypes.equals(curChangeTypes)) {
-                res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
-                        curChangeTypes.methodMap, curChangeTypes.curClass));
+                res.addAll(getChangedMethodsPerChangeType(preChangeTypes.instanceMethodMap,
+                        curChangeTypes.instanceMethodMap, curChangeTypes.curClass));
+                res.addAll(getChangedMethodsPerChangeType(preChangeTypes.staticMethodMap,
+                        curChangeTypes.staticMethodMap, curChangeTypes.curClass));
                 res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
                         curChangeTypes.constructorsMap, curChangeTypes.curClass));
             }
@@ -489,7 +493,9 @@ public class ZLCHelper implements StartsConstants {
                     // does not exist before
                     if (allTests.contains(curChangeTypes.curClass)) {
                         Set<String> methods = new HashSet<>();
-                        curChangeTypes.methodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                        curChangeTypes.instanceMethodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
+                                m.substring(0, m.indexOf(")") + 1)));
+                        curChangeTypes.staticMethodMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
                                 m.substring(0, m.indexOf(")") + 1)));
                         curChangeTypes.constructorsMap.keySet().forEach(m -> methods.add(curChangeTypes.curClass + "#" +
                                 m.substring(0, m.indexOf(")") + 1)));
@@ -498,10 +504,11 @@ public class ZLCHelper implements StartsConstants {
                 }else {
                     changeTypePaths.remove(changeTypePath);
                     StartsChangeTypes preChangeTypes = StartsChangeTypes.fromFile(changeTypePath);
-
                     if (!preChangeTypes.equals(curChangeTypes)) {
-                        res.addAll(getChangedMethodsPerChangeType(preChangeTypes.methodMap,
-                                curChangeTypes.methodMap, curChangeTypes.curClass));
+                        res.addAll(getChangedMethodsPerChangeType(preChangeTypes.instanceMethodMap,
+                                curChangeTypes.instanceMethodMap, curChangeTypes.curClass));
+                        res.addAll(getChangedMethodsPerChangeType(preChangeTypes.staticMethodMap,
+                                curChangeTypes.staticMethodMap, curChangeTypes.curClass));
                         res.addAll(getChangedMethodsPerChangeType(preChangeTypes.constructorsMap,
                                 curChangeTypes.constructorsMap, curChangeTypes.curClass));
                     }
@@ -518,6 +525,15 @@ public class ZLCHelper implements StartsConstants {
     static Set<String> getChangedMethodsPerChangeType(TreeMap<String, String> oldMethodsPara, TreeMap<String, String> newMethodsPara,
                                                       String className){
         Set<String> res = new HashSet<>();
+        if (oldMethodsPara == null && newMethodsPara == null){
+            return res;
+        }else if (oldMethodsPara == null){
+            newMethodsPara.keySet().forEach(m -> res.add(className + "#" + m.substring(0, m.indexOf(")") + 1)));
+            return res;
+        }else if (newMethodsPara == null){        
+            oldMethodsPara.keySet().forEach(m -> res.add(className + "#" + m.substring(0, m.indexOf(")") + 1)));
+            return res;
+        }
         TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
         TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
         //TODO: consider adding test class

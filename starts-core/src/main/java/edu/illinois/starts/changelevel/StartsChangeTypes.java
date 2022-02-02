@@ -17,16 +17,15 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public transient static HashMap<String, Set<String>> hierarchyGraph;
     public transient TreeMap<String, String> instanceFieldMap;
     public transient TreeMap<String, String> staticFieldMap;
-    public transient TreeMap<String, String> instanceMethodMap;
-    public transient TreeMap<String, String> staticMethodMap;
     public static transient HashSet<String> testClasses;
-    public static long saveChangeTypes = 0;
-    public static long numChangeTypes = 0;
-    public static long sizeChangeTypes = 0;
+    public static transient long saveChangeTypes = 0;
+    public static transient long numChangeTypes = 0;
+    public static transient long sizeChangeTypes = 0;
 
     public TreeMap<String, String> constructorsMap;
-    public TreeMap<String, String> methodMap;
     public Set<String> fieldList;
+    public TreeMap<String, String> instanceMethodMap;
+    public TreeMap<String, String> staticMethodMap;
     public String curClass = "";
     public String superClass = "";
     public String urlExternalForm = "";
@@ -36,7 +35,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         constructorsMap = new TreeMap<>();
         instanceMethodMap = new TreeMap<>();
         staticMethodMap = new TreeMap<>();
-        methodMap = new TreeMap<>();
         instanceFieldMap = new TreeMap<>();
         staticFieldMap = new TreeMap<>();
         fieldList = new HashSet<>();
@@ -143,7 +141,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         if (testClasses == null){
             testClasses = listTestClasses();
         }
-        modified = methodChange(this.methodMap, other.methodMap, hasHierarchy);
+        modified = methodChange(this.instanceMethodMap, other.instanceMethodMap, hasHierarchy) || methodChange(this.staticMethodMap, other.staticMethodMap, hasHierarchy);
         return !modified;
     }
 
@@ -240,6 +238,15 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     }
 
     private boolean methodChange(TreeMap<String, String> newMethodsPara, TreeMap<String, String> oldMethodsPara, boolean hasHierarchy){
+        if (newMethodsPara == null && oldMethodsPara == null){
+            return false;
+        }else if(newMethodsPara == null || oldMethodsPara == null){
+            if (!hasHierarchy && !testClasses.contains(this.curClass)){
+                return false;
+            }else{
+                return true;
+            }
+        }
         TreeMap<String, String> newMethods = new TreeMap<>(newMethodsPara);
         TreeMap<String, String> oldMethods = new TreeMap<>(oldMethodsPara);
         Set<String> methodSig = new HashSet<>(oldMethods.keySet());
@@ -269,6 +276,8 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         if (!hasHierarchy && (oldMethods.size() == 0 || newMethods.size() == 0)){
             if (testClasses.contains(this.curClass)){
                 return true;
+            }else{
+                return false;
             }
         }
 
@@ -285,6 +294,8 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         return "StartsChangeTypes{" +
                 ", curClass='" + curClass + '\'' +
                 ", constructorsMap=" + constructorsMap +
+                ", instanceMethodsMap=" + instanceMethodMap +
+                ", staticMethodMap=" + staticMethodMap +
                 '}';
     }
 }

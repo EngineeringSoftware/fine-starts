@@ -16,7 +16,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
     private TreeMap<String, String> constructorsMap = new TreeMap<>();
     private TreeMap<String, String> instanceMethodMap = new TreeMap<>();
     private TreeMap<String, String> staticMethodMap = new TreeMap<>();
-    private TreeMap<String, String> methodMap = new TreeMap<>();
     private TreeMap<String, String> instanceFieldMap = new TreeMap<>();
     private TreeMap<String, String> staticFieldMap = new TreeMap<>();
     private HashMap<String, String> exceptionMap = new HashMap<>();
@@ -104,13 +103,11 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
                     boolean isStatic =  (access & Opcodes.ACC_STATIC) != 0 ;
                     if(isStatic){
                         staticMethodMap.put(methodSignature, hashString(methodBody));
-                        methodMap.put(methodSignature, hashString(methodBody));
                     }else{
                         if (methodSignature.contains("<init>")) {
                             constructorsMap.put(methodSignature, hashSortedString(methodBody));
                         }else{
                             instanceMethodMap.put(methodSignature, hashString(methodBody));
-                            methodMap.put(methodSignature, hashString(methodBody));
                         }
                     }
                 }
@@ -224,7 +221,6 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
         c.staticFieldMap = this.staticFieldMap;
         c.curClass = this.curClass;
         c.superClass = this.superClass;
-        c.methodMap = this.methodMap;
         c.fieldList = this.fieldList;
         return c;
     }
@@ -269,13 +265,11 @@ public class FineTunedBytecodeCleaner extends ClassVisitor {
         return exceptionMap;
     }
 
-    private String hashSortedString(String str){
+    private static String hashSortedString(String str){
         // hashByteArray
         byte[] bytes = str.getBytes();
         Arrays.sort(bytes);
         return String.valueOf(Hasher.hashString(new String(bytes)));
-        // String sortedString = str.chars().sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
-        // return String.valueOf(Hasher.hashString(sortedString));
         // return str.chars() // IntStream
         //         .sorted().collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
     }
