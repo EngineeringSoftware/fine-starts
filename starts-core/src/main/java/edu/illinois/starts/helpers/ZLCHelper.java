@@ -219,7 +219,7 @@ public class ZLCHelper implements StartsConstants {
                         long fineRTSOverheadStart = System.currentTimeMillis();
                         if (line.contains("target")){
                             if (!initClassesPaths) {
-                                // init
+                                // init class paths
                                 long findAllClassesStart = System.currentTimeMillis();
                                 newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
                                         .filter(Files::isRegularFile)
@@ -229,6 +229,8 @@ public class ZLCHelper implements StartsConstants {
                                 initClassesPaths = true;
                                 long findAllClassesEnd = System.currentTimeMillis();
                                 LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
+                                // init hierarchy graph
+                                StartsChangeTypes.initHierarchyGraph(newClassesPaths);
                             }
                             boolean finertsChanged = true;
                         

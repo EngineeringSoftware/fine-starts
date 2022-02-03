@@ -3,8 +3,6 @@ package edu.illinois.starts.changelevel;
 import org.ekstazi.asm.ClassReader;
 
 import edu.illinois.starts.helpers.FileUtil;
-import edu.illinois.starts.util.Macros;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,7 +15,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
     public transient static HashMap<String, Set<String>> hierarchyGraph;
     public transient TreeMap<String, String> instanceFieldMap;
     public transient TreeMap<String, String> staticFieldMap;
-    public static transient HashSet<String> testClasses;
     public static transient long saveChangeTypes = 0;
     public static transient long numChangeTypes = 0;
     public static transient long sizeChangeTypes = 0;
@@ -101,12 +98,6 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
 
         final StartsChangeTypes other = (StartsChangeTypes) obj;
 
-        if (hierarchyGraph == null){
-            // TODO: multi module projects
-            getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/classes"));
-            getHierarchyGraph(listFiles(System.getProperty("user.dir")+"/target/test-classes"));
-        }
-
         boolean modified;
 
         // field changes
@@ -138,38 +129,12 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         if (StartsChangeTypes.hierarchyGraph.containsKey(newCurClass) || StartsChangeTypes.hierarchyGraph.containsKey(oldCurClass)){
             hasHierarchy =  true;
         }
-        if (testClasses == null){
-            testClasses = listTestClasses();
-        }
         modified = methodChange(this.instanceMethodMap, other.instanceMethodMap, hasHierarchy) || methodChange(this.staticMethodMap, other.staticMethodMap, hasHierarchy);
         return !modified;
     }
 
-    public HashSet<String> listTestClasses(){
-        // todo: STARTS does not use test class name as file name
-        HashSet<String> testClasses = new HashSet<>();
-        File allTests = new File(System.getProperty("user.dir") + "/" +Macros.STARTS_ROOT_DIR_NAME +  "/" + "deps.zlc");
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(allTests));
-            String st;
-            while ((st = br.readLine()) != null) {
-                String[] currentTests = st.split(" ")[2].split(",");
-                for (String currentTest : currentTests){
-                    testClasses.add(currentTest.replace(".", "/"));
-                }
-            }
-        } catch (FileNotFoundException e) {
-            System.out.println("all-tests not found");
-            e.printStackTrace();
-        } catch (IOException e){
-            System.out.println("fail to read all-tests");
-            e.printStackTrace();
-        }
-        return testClasses;
-    }
-
-    public static List<String> listFiles(String dir) {
-        List<String> res = new ArrayList<>();
+    public static Set<String> listFiles(String dir) {
+        Set<String> res = new HashSet<>();
         try {
             List<Path> pathList =  Files.find(Paths.get(dir), 999, (p, bfa) -> !bfa.isDirectory())
                     .collect(Collectors.toList());
@@ -186,7 +151,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
         return res;
     }
 
-    public static void getHierarchyGraph(List<String> classPaths){
+    public static void initHierarchyGraph(Set<String> classPaths){
         // subclass <-> superclasses
         HashMap<String, Set<String>> graph = new HashMap<>();
         try {
@@ -214,7 +179,7 @@ public class StartsChangeTypes implements Serializable, Comparable<StartsChangeT
             hierarchyGraph = new HashMap<>();
         }
         hierarchyGraph.putAll(graph);
-//        System.out.println("[log]hierarchyGraph: "+hierarchyGraph.keySet());
+    //    System.out.println("[log]hierarchyGraph: "+hierarchyGraph.keySet());
     }
 
     private boolean fieldChange(Set<String> newFields, Set<String> oldFields){
