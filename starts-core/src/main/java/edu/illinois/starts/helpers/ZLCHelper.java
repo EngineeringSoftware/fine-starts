@@ -38,7 +38,6 @@ public class ZLCHelper implements StartsConstants {
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
 
-    private static Set<String> allTestClasses = new HashSet<>();
     private static Set<String> newClassesPaths = new HashSet<>();
     private static Set<String> oldClassesPaths = new HashSet<>();
     private static boolean initGraph = false;
@@ -219,7 +218,7 @@ public class ZLCHelper implements StartsConstants {
                         long fineRTSOverheadStart = System.currentTimeMillis();
                         if (line.contains("target")){
                             if (!initClassesPaths) {
-                                // init class paths
+                                // init
                                 long findAllClassesStart = System.currentTimeMillis();
                                 newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
                                         .filter(Files::isRegularFile)
@@ -271,21 +270,8 @@ public class ZLCHelper implements StartsConstants {
                                         List<ClassReader> classReaderList = getClassReaders(".");
                                         // find the methods that each method calls
                                         findMethodsinvoked(classReaderList);
-                                        // find all the test classes
-                                        for (ClassReader c : classReaderList) {
-                                            if (c.getClassName().contains("Test")) {
-                                                allTestClasses.add(c.getClassName().split("\\$")[0]);
-                                            }
-                                        }
                                         long buildGraphEnd = System.currentTimeMillis();
-                                        LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));
-
-                                        long tcStart = System.currentTimeMillis();
-                                        test2methods = getDeps(methodName2MethodNames, allTestClasses);
-                                        long tcEnd = System.currentTimeMillis();
-                                        LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (tcEnd - tcStart));
-                                        LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size());
-                                                  
+                                        LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));                                       
                                         initGraph = true;
                                     }
 
@@ -342,11 +328,20 @@ public class ZLCHelper implements StartsConstants {
 
         if (fineRTSOn){
             if (mRTSOn) {
+                // get test to methods mapping with multi threading
+                long test2methodsStart = System.currentTimeMillis();
+                Set<String> affectedSplitWithSlash = new HashSet<>();
+                affected.forEach(t -> affectedSplitWithSlash.add(t.replace(".", "/")));
+                Map<String, Set<String>> test2methods = getDeps(affectedSplitWithSlash);
+                long test2methodsEnd = System.currentTimeMillis();
+                LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (test2methodsEnd - test2methodsStart));
+                // LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size()); 
+         
                 long shouldTestRunStart = System.currentTimeMillis();
-                affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/")));
+                affected.removeIf(affectedTest -> !shouldTestRun(affectedTest.replace(".", "/"), test2methods));
                 long shouldTestRunEnd = System.currentTimeMillis();
                 shouldTestRunTime += shouldTestRunEnd - shouldTestRunStart;
-                methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart;
+                methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart + test2methodsEnd - test2methodsStart;
             }
 //            System.out.println("affected: " + affected);
             long fineRTSOverheadStart = System.currentTimeMillis();
@@ -388,10 +383,12 @@ public class ZLCHelper implements StartsConstants {
         return new Pair<>(nonAffected, changedClasses);
     }
 
-    public static boolean shouldTestRun(String test){
+    public static boolean shouldTestRun(String test, Map<String, Set<String>> test2methods){
 //        System.out.println("test: " + test);
         Set<String> mlUsedClasses = new HashSet<>();
         Set<String> mlUsedMethods = test2methods.getOrDefault(test, new TreeSet<>());
+        // without multithreading:
+        // Set<String> mlUsedMethods = getDeps(test);
         for (String mulUsedMethod: mlUsedMethods){
             mlUsedClasses.add(mulUsedMethod.split("#")[0]);
         }

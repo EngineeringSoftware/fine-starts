@@ -2,28 +2,20 @@ package edu.illinois.starts.smethods;
 
 import org.ekstazi.asm.ClassReader;
 
-import edu.illinois.starts.smethods.ClassToMethodsCollectorCV;
-import edu.illinois.starts.smethods.MethodCallCollectorCV;
-import edu.illinois.starts.smethods.ConstantPoolParser;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-
 
 public class MethodLevelStaticDepsBuilder{
     // mvn exec:java -Dexec.mainClass=org.sekstazi.smethods.MethodLevelStaticDepsBuilder -Dmyproperty=/Users/liuyu/projects/finertsTest
@@ -38,10 +30,10 @@ public class MethodLevelStaticDepsBuilder{
     public static Map<String, Set<String>> hierarchy_parents = new HashMap<>();
     // for every class, find its children.
     public static Map<String, Set<String>> hierarchy_children = new HashMap<>();
-    // for every test class, find what method it depends on
-    public static Map<String, Set<String>> test2methods = new HashMap<>();
-    // number of nodes in method level dependency graph
-    public static Set<String> numMethodDepNodes = new ConcurrentSkipListSet<String>();
+    // // for every test class, find what method it depends on
+    // public static Map<String, Set<String>> test2methods = new HashMap<>();
+    // // number of nodes in method level dependency graph
+    // public static Set<String> numMethodDepNodes = new ConcurrentSkipListSet<String>();
 
     public static void main(String... args) throws Exception {
         // We need at least the argument that points to the root
@@ -66,7 +58,7 @@ public class MethodLevelStaticDepsBuilder{
             }
         }
 
-        test2methods = getDeps(methodName2MethodNames, testClasses);
+        Map<String, Set<String>>  test2methods = getDeps(testClasses);
 
         saveMap(methodName2MethodNames, "graph.txt");
         saveMap(hierarchy_parents, "hierarchy_parents.txt");
@@ -157,7 +149,7 @@ public class MethodLevelStaticDepsBuilder{
         pw.close();
     }
 
-    public static Set<String> getDepsHelper(Map<String, Set<String>> methodName2MethodNames, String testClass) {
+    public static Set<String> getDepsHelper(String testClass) {
         Set<String> visitedMethods = new TreeSet<>();
         //BFS
         ArrayDeque<String> queue = new ArrayDeque<>();
@@ -182,7 +174,30 @@ public class MethodLevelStaticDepsBuilder{
         return visitedMethods;
     }
 
-    public static Map<String, Set<String>> getDeps(Map<String, Set<String>> methodName2MethodNames, Set<String> testClasses) {
+    // simple DFS
+    public static void getDepsDFS(String methodName, Set<String> visitedMethods){
+        if (methodName2MethodNames.containsKey(methodName)){
+            for (String method : methodName2MethodNames.get(methodName)){
+                if (!visitedMethods.contains(method)){
+                    visitedMethods.add(method);
+                    getDepsDFS(method, visitedMethods);
+                }
+            }
+        }
+    }
+
+    public static Set<String> getDeps(String testClass){
+        Set<String> visited = new HashSet<>();
+        for (String method : methodName2MethodNames.keySet()){
+            if (method.startsWith(testClass+"#")){
+                visited.add(method);
+                getDepsDFS(method, visited);
+            }
+        }
+        return visited;
+    }
+
+    public static Map<String, Set<String>> getDeps(Set<String> testClasses) {
         Map<String, Set<String>> test2methods = new ConcurrentSkipListMap<>();
         ExecutorService service = null;
         try {
@@ -190,9 +205,9 @@ public class MethodLevelStaticDepsBuilder{
             for (final String testClass : testClasses)
             {
                 service.submit(() -> {
-                    Set<String> invokedMethods = getDepsHelper(methodName2MethodNames, testClass);
+                    Set<String> invokedMethods = getDeps(testClass);
                     test2methods.put(testClass, invokedMethods);
-                    numMethodDepNodes.addAll(invokedMethods);
+                    // numMethodDepNodes.addAll(invokedMethods);
                 });
             }
             service.shutdown();
