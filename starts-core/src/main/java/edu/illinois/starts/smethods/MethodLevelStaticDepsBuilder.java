@@ -78,6 +78,15 @@ public class MethodLevelStaticDepsBuilder{
                 ClassReader classReader = new ClassReader(new FileInputStream(new File(classPath)));
                 ClassToMethodsCollectorCV classToMethodsVisitor = new ClassToMethodsCollectorCV(class2ContainedMethodNames, hierarchy_parents, hierarchy_children);
                 classReader.accept(classToMethodsVisitor, ClassReader.SKIP_DEBUG);
+            } catch(IOException e) {
+                System.out.println("Cannot parse file: " + classPath);
+                continue;
+            }
+        }
+
+        for (String classPath : classPaths){
+            try {
+                ClassReader classReader = new ClassReader(new FileInputStream(new File(classPath)));
                 //TODO: not keep methodName2MethodNames, hierarchies as fields
                 MethodCallCollectorCV methodClassVisitor = new MethodCallCollectorCV(methodName2MethodNames, hierarchy_parents, hierarchy_children, class2ContainedMethodNames);
                 classReader.accept(methodClassVisitor, ClassReader.SKIP_DEBUG);
