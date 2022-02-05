@@ -71,16 +71,12 @@ public class MethodCallCollectorCV extends ClassVisitor {
                     if (class2ContainedMethodNames.getOrDefault(owner, new HashSet<>()).contains(methodSig)) {
                         String invokedKey = owner + "#" + methodSig;
                         mInvokedMethods.add(invokedKey);
-
-//                        method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                     }else{
                         // find the first parent that implements the method
                         String firstParent = findFirstParent(owner, methodSig);
                         if (!firstParent.equals("")){
                             String invokedKey = firstParent + "#" + methodSig;
                             mInvokedMethods.add(invokedKey);
-
-//                            method2usage.computeIfAbsent(invokedKey, k -> new TreeSet<>()).add(key);
                         }
                     }
                     if (!methodSig.startsWith("<init>") && !methodSig.startsWith("<clinit>")) {

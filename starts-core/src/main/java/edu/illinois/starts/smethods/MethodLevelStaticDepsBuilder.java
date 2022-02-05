@@ -43,11 +43,15 @@ public class MethodLevelStaticDepsBuilder{
 //        }
 //        String pathToStartDir = args[0];
         String pathToStartDir = "/Users/liuyu/projects/ctaxonomy/_downloads/alibaba_fastjson_sekstazi";
-
-        List<ClassReader> classReaderList = getClassReaders(pathToStartDir);
+        
+        HashSet classPaths = new HashSet<>(Files.walk(Paths.get("."))
+                                        .filter(Files::isRegularFile)
+                                        .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
+                                        .map(f -> f.normalize().toAbsolutePath().toString())
+                                        .collect(Collectors.toList()));
 
         // find the methods that each method calls
-        findMethodsinvoked(classReaderList);
+        findMethodsinvoked(classPaths);
 
         // suppose that test classes have Test in their class name
         Set<String> testClasses = new HashSet<>();
@@ -68,37 +72,19 @@ public class MethodLevelStaticDepsBuilder{
         saveMap(test2methods, "methods.txt");
     }
 
-    //TODO: keeping all the classreaders would crash the memory
-    public static List<ClassReader> getClassReaders(String directory) throws IOException {
-        return Files.walk(Paths.get(directory))
-                .sequential()
-                .filter(x -> !x.toFile().isDirectory())
-                .filter(x -> x.toFile().getAbsolutePath().endsWith(".class"))
-                .map(new Function<Path, ClassReader>() {
-                    @Override
-                    public ClassReader apply(Path t) {
-                        try {
-                            return new ClassReader(new FileInputStream(t.toFile()));
-                        } catch(IOException e) {
-                            System.out.println("Cannot parse file: "+t);
-                            return null;
-                        }
-                    }
-                })
-                .filter(x -> x != null)
-                .collect(Collectors.toList());
-    }
-
-    public static void findMethodsinvoked(List<ClassReader> classReaderList){
-        for (ClassReader classReader : classReaderList){
-            ClassToMethodsCollectorCV visitor = new ClassToMethodsCollectorCV(class2ContainedMethodNames , hierarchy_parents, hierarchy_children);
-            classReader.accept(visitor, ClassReader.SKIP_DEBUG);
-        }
-        for (ClassReader classReader : classReaderList){
-//            Set<String> classesInConstantPool = ConstantPoolParser.getClassNames(ByteBuffer.wrap(classReader.b));
-            //TODO: not keep methodName2MethodNames, hierarchies as fields
-            MethodCallCollectorCV visitor = new MethodCallCollectorCV(methodName2MethodNames, hierarchy_parents, hierarchy_children, class2ContainedMethodNames);
-            classReader.accept(visitor, ClassReader.SKIP_DEBUG);
+    public static void findMethodsinvoked(Set<String> classPaths){
+        for (String classPath : classPaths){
+            try {
+                ClassReader classReader = new ClassReader(new FileInputStream(new File(classPath)));
+                ClassToMethodsCollectorCV classToMethodsVisitor = new ClassToMethodsCollectorCV(class2ContainedMethodNames, hierarchy_parents, hierarchy_children);
+                classReader.accept(classToMethodsVisitor, ClassReader.SKIP_DEBUG);
+                //TODO: not keep methodName2MethodNames, hierarchies as fields
+                MethodCallCollectorCV methodClassVisitor = new MethodCallCollectorCV(methodName2MethodNames, hierarchy_parents, hierarchy_children, class2ContainedMethodNames);
+                classReader.accept(methodClassVisitor, ClassReader.SKIP_DEBUG);
+            } catch(IOException e) {
+                System.out.println("Cannot parse file: " + classPath);
+                continue;
+            }
         }
 
         // deal with test class in a special way, all the @test method in hierarchy should be considered
@@ -109,8 +95,6 @@ public class MethodLevelStaticDepsBuilder{
                         String subClassKey = subClass + "#" + methodSig;
                         String superClassKey = superClass + "#" + methodSig;
                         methodName2MethodNames.computeIfAbsent(subClassKey, k -> new TreeSet<>()).add(superClassKey);
-
-//                        method2usage.computeIfAbsent(superClassKey, k -> new TreeSet<>()).add(subClassKey);
                     }
                 }
             }
