@@ -148,7 +148,7 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
 
@@ -329,7 +329,12 @@ public class ZLCHelper implements StartsConstants {
                 long test2methodsStart = System.currentTimeMillis();
                 Set<String> affectedSplitWithSlash = new HashSet<>();
                 affected.forEach(t -> affectedSplitWithSlash.add(t.replace(".", "/")));
-                Map<String, Set<String>> test2methods = getDeps(affectedSplitWithSlash);
+                Map<String, Set<String>> test2methods = new HashMap<>();
+                if (mMultithreadOn){
+                    test2methods = getDepsMultiThread(affectedSplitWithSlash);
+                }else{
+                    test2methods = getDepsSingleThread(affectedSplitWithSlash);
+                }
                 long test2methodsEnd = System.currentTimeMillis();
                 LOGGER.log(Level.FINEST, "FineSTARTSTC: " + (test2methodsEnd - test2methodsStart));
                 // LOGGER.log(Level.FINEST, "FineSTARTSNumMethodNodes: " + numMethodDepNodes.size()); 

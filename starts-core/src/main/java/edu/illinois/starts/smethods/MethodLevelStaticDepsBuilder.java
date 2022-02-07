@@ -62,7 +62,7 @@ public class MethodLevelStaticDepsBuilder{
             }
         }
 
-        Map<String, Set<String>>  test2methods = getDeps(testClasses);
+        Map<String, Set<String>>  test2methods = getDepsSingleThread(testClasses);
 
         saveMap(methodName2MethodNames, "graph.txt");
         saveMap(hierarchy_parents, "hierarchy_parents.txt");
@@ -190,7 +190,15 @@ public class MethodLevelStaticDepsBuilder{
         return visited;
     }
 
-    public static Map<String, Set<String>> getDeps(Set<String> testClasses) {
+    public static Map<String, Set<String>> getDepsSingleThread(Set<String> testClasses){
+        Map<String, Set<String>> test2methods = new HashMap<>();
+        for (String testClass : testClasses){
+            test2methods.put(testClass, getDeps(testClass));
+        }
+        return test2methods;
+    }
+
+    public static Map<String, Set<String>> getDepsMultiThread(Set<String> testClasses) {
         Map<String, Set<String>> test2methods = new ConcurrentSkipListMap<>();
         ExecutorService service = null;
         try {
