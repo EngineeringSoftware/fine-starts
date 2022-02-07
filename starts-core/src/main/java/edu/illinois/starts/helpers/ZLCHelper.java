@@ -329,7 +329,7 @@ public class ZLCHelper implements StartsConstants {
                 long test2methodsStart = System.currentTimeMillis();
                 Set<String> affectedSplitWithSlash = new HashSet<>();
                 affected.forEach(t -> affectedSplitWithSlash.add(t.replace(".", "/")));
-                Map<String, Set<String>> test2methods = new HashMap<>();
+                Map<String, Set<String>> test2methods;
                 if (mMultithreadOn){
                     test2methods = getDepsMultiThread(affectedSplitWithSlash);
                 }else{
