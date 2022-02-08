@@ -22,7 +22,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 /**
  * Utility methods for dealing with the .zlc format.
  */
@@ -33,12 +32,14 @@ public class ZLCHelper implements StartsConstants {
     private static Map<String, ZLCData> zlcDataMap;
     private static final String NOEXISTING_ZLCFILE_FIRST_RUN = "@NoExistingZLCFile. First Run?";
 
-    private static Set<String> newClassesPaths = new HashSet<>();
+    private static Set<String> allClassesPaths = new HashSet<>();
     private static Set<String> oldClassesPaths = new HashSet<>();
     private static boolean initGraph = false;
     private static boolean initClassesPaths = false;
     private static Set<String> changedMethods = new HashSet<>();
-    private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>( );
+    private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>();
+    private static Set<String> affectedLines = new HashSet<>();
+    private static Set<String> changedClassesPaths = new HashSet<>();
     private static long shouldTestRunTime = 0;
     private static long parseChangeTypeTime = 0;
     private static long fineRTSOverheadTime = 0;
@@ -146,6 +147,7 @@ public class ZLCHelper implements StartsConstants {
     public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
+        String space = WHITE_SPACE;
 
         if (!zlc.exists()) {
             // first run
@@ -157,6 +159,7 @@ public class ZLCHelper implements StartsConstants {
                     .filter(x -> !x.toFile().isDirectory())
                     .filter(x -> x.toString().endsWith(".class") && x.toString().contains("target"))
                     .forEach(t -> {
+                            allClassesPaths.add(t.normalize().toAbsolutePath().toString());
                             try {
                                 File classFile = t.toFile();
                                 if (classFile.isFile()) {   
@@ -170,11 +173,13 @@ public class ZLCHelper implements StartsConstants {
                                 // System.out.println("Cannot parse file: "+t);
                             }
                     });
+                    // save method level dependency
+                    findMethodsInvoked(allClassesPaths);
                 } catch (IOException e) {
                     e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
-
             LOGGER.log(Level.FINEST, NOEXISTING_ZLCFILE_FIRST_RUN);
             return null;
         }
@@ -186,7 +191,6 @@ public class ZLCHelper implements StartsConstants {
         try {
             List<String> zlcLines = Files.readAllLines(zlc.toPath(), Charset.defaultCharset());
             String firstLine = zlcLines.get(0);
-            String space = WHITE_SPACE;
 
             // check whether the first line is for *
             if (firstLine.startsWith(STAR_FILE)) {
@@ -207,85 +211,9 @@ public class ZLCHelper implements StartsConstants {
                 }
                 String newCheckSum = checksumUtil.computeSingleCheckSum(url);
                 if (!newCheckSum.equals(oldCheckSum)) {
-                    if (fineRTSOn) {
-                        long fineRTSOverheadStart = System.currentTimeMillis();
-                        if (line.contains("target")){
-                            if (!initClassesPaths) {
-                                // init
-                                long findAllClassesStart = System.currentTimeMillis();
-                                newClassesPaths = new HashSet<>(Files.walk(Paths.get("."))
-                                        .filter(Files::isRegularFile)
-                                        .filter(f -> (f.toString().endsWith(".class") && f.toString().contains("target")))
-                                        .map(f -> f.normalize().toAbsolutePath().toString())
-                                        .collect(Collectors.toList()));
-                                initClassesPaths = true;
-                                long findAllClassesEnd = System.currentTimeMillis();
-                                LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
-                                // init hierarchy graph
-                                StartsChangeTypes.initHierarchyGraph(newClassesPaths);
-                            }
-                            boolean finertsChanged = true;
-                        
-                            long parseChangeTypeStart = System.currentTimeMillis();
-                            String fileName = FileUtil.urlToSerFilePath(stringURL);
-                            StartsChangeTypes curStartsChangeTypes = null;
-                            try {
-                                File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
-                                if (curClassFile.exists()) {
-                                    StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-                                    curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(org.ekstazi.util.FileUtil.readFile(
-                                            curClassFile));
-                                    if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
-                                        finertsChanged = false;
-                                    }                  
-                                    
-                                    if(mRTSOn){
-                                        long getChangedMethodStart = System.currentTimeMillis();
-                                        Set<String> curChangedMethods = getChangedMethods(preStartsChangeTypes, curStartsChangeTypes);
-                                        // System.out.println(url);
-                                        // System.out.println("curChangedMethods: " + curChangedMethods);
-                                        changedMethods.addAll(curChangedMethods);
-                                        long getChangedMethodEnd = System.currentTimeMillis();
-                                        changedMethodTime += (getChangedMethodEnd - getChangedMethodStart);
-                                    }
-                                }
-                            } catch (ClassNotFoundException | IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                            long parseChangeTypeEnd = System.currentTimeMillis();
-                            parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;
-
-                            if (finertsChanged) {
-                                if (mRTSOn) {
-                                    long methodLevelAnalysisOverheadStart = System.currentTimeMillis();
-                                    if (!initGraph) {
-                                        long buildGraphStart = System.currentTimeMillis();
-                                        // find the methods that each method calls
-                                        // read previous dependency graph
-                                        findMethodsinvoked(newClassesPaths);
-                                        long buildGraphEnd = System.currentTimeMillis();
-                                        LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));                                       
-                                        initGraph = true;
-                                    }
-
-                                    for (String test : tests) {
-                                        clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
-                                    }
-                                    long methodLevelAnalysisOverheadEnd = System.currentTimeMillis();
-                                    methodAnalysisOverheadTime += methodLevelAnalysisOverheadEnd - methodLevelAnalysisOverheadStart;
-                                }
-                                affected.addAll(tests);
-                                changedClasses.add(stringURL);
-                            }
-                            if (saveMRTSOn && curStartsChangeTypes!=null) {
-                                StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
-                            }  
-                        }else{
-                            affected.addAll(tests);
-                            changedClasses.add(stringURL);  
-                        }
-                        long fineRTSOverheadEnd = System.currentTimeMillis();
-                        fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
+                    if(fineRTSOn && stringURL.contains("target")){
+                        affectedLines.add(line);
+                        changedClassesPaths.add(url.getPath());
                     }else{
                         affected.addAll(tests);
                         changedClasses.add(stringURL);
@@ -309,17 +237,89 @@ public class ZLCHelper implements StartsConstants {
                 ZLCData data = new ZLCData(url, newCheckSum, tests);
                 zlcDataMap.put(stringURL, data);
             }
-
         } catch (IOException ioe) {
             ioe.printStackTrace();
+            throw new RuntimeException(ioe);
         }
 
-        if (!changedClasses.isEmpty()) {
-            // there was some change so we need to add all tests that reach star, if any
-            affected.addAll(starTests);
-        }
+        if (fineRTSOn && affectedLines.size() > 0){
+            long fineRTSOverheadStart = System.currentTimeMillis();
+            for (String line : affectedLines){
+                String[] parts = line.split(space);
+                String stringURL = parts[0];
+                Set<String> tests = parts.length == 3 ? fromCSV(parts[2]) : new HashSet<String>();
+                if (!initClassesPaths) {
+                    // init
+                    long findAllClassesStart = System.currentTimeMillis();
+                    allClassesPaths = org.ekstazi.util.FileUtil.getClassPaths();
+                    initClassesPaths = true;
+                    long findAllClassesEnd = System.currentTimeMillis();
+                    LOGGER.log(Level.FINEST, "FineSTARTSfindAllClasses: " + (findAllClassesEnd - findAllClassesStart));
+                    // init hierarchy graph
+                    StartsChangeTypes.initHierarchyGraph(allClassesPaths);
+                }
+                boolean finertsChanged = true;
+            
+                long parseChangeTypeStart = System.currentTimeMillis();
+                String fileName = FileUtil.urlToSerFilePath(stringURL);
+                StartsChangeTypes curStartsChangeTypes = null;
+                try {
+                    File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
+                    if (curClassFile.exists()) {
+                        StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
+                        curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(org.ekstazi.util.FileUtil.readFile(
+                                curClassFile));
+                        if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
+                            finertsChanged = false;
+                        }                  
+                        
+                        if(mRTSOn){
+                            long getChangedMethodStart = System.currentTimeMillis();
+                            Set<String> curChangedMethods = getChangedMethods(preStartsChangeTypes, curStartsChangeTypes);
+                            // System.out.println(url);
+                            // System.out.println("curChangedMethods: " + curChangedMethods);
+                            changedMethods.addAll(curChangedMethods);
+                            long getChangedMethodEnd = System.currentTimeMillis();
+                            changedMethodTime += (getChangedMethodEnd - getChangedMethodStart);
+                        }
+                    }
+                } catch (ClassNotFoundException | IOException e) {
+                    throw new RuntimeException(e);
+                }
+                long parseChangeTypeEnd = System.currentTimeMillis();
+                parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;
 
-        if (fineRTSOn){
+                if (finertsChanged) {
+                    if (mRTSOn) {
+                        long methodLevelAnalysisOverheadStart = System.currentTimeMillis();
+                        if (!initGraph) {
+                            long buildGraphStart = System.currentTimeMillis();
+                            // find the methods that each method calls
+                            // read previous dependency graph
+                            HashSet<String> newClassesPaths = new HashSet<String>(allClassesPaths);
+                            newClassesPaths.removeAll(oldClassesPaths);
+                            changedClassesPaths.addAll(newClassesPaths);
+                            findMethodsInvoked(changedClassesPaths, allClassesPaths);
+                            long buildGraphEnd = System.currentTimeMillis();
+                            LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));                                       
+                            initGraph = true;
+                        }
+
+                        for (String test : tests) {
+                            clModifiedClassesMap.computeIfAbsent(test.replace(".", "/"), k -> new HashSet<>()).add(FileUtil.urlToClassName(stringURL));
+                        }
+                        long methodLevelAnalysisOverheadEnd = System.currentTimeMillis();
+                        methodAnalysisOverheadTime += methodLevelAnalysisOverheadEnd - methodLevelAnalysisOverheadStart;
+                    }
+                    affected.addAll(tests);
+                    changedClasses.add(stringURL);
+                }
+                if (saveMRTSOn && curStartsChangeTypes!=null) {
+                    StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
+                }  
+            }
+            long fineRTSOverheadEnd = System.currentTimeMillis();
+            fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
             if (mRTSOn) {
                 // get test to methods mapping with multi threading
                 long test2methodsStart = System.currentTimeMillis();
@@ -342,12 +342,12 @@ public class ZLCHelper implements StartsConstants {
                 methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart + test2methodsEnd - test2methodsStart;
             }
 //            System.out.println("affected: " + affected);
-            long fineRTSOverheadStart = System.currentTimeMillis();
-            if (newClassesPaths!=null) {
-                newClassesPaths.removeAll(oldClassesPaths);
+            fineRTSOverheadStart = System.currentTimeMillis();
+            if (allClassesPaths.size() != 0) {
+                allClassesPaths.removeAll(oldClassesPaths);
                 // System.out.println("new class paths: " + newClassesPaths);
                 // update the newly add ChangeTyeps
-                for (String remainingPath : newClassesPaths) {
+                for (String remainingPath : allClassesPaths) {
                     try {
                         long parseChangeTypeStart = System.currentTimeMillis();
                         File remainingFile = new File(remainingPath);      
@@ -364,9 +364,15 @@ public class ZLCHelper implements StartsConstants {
                     }
                 }
             }
-            long fineRTSOverheadEnd = System.currentTimeMillis();
+            fineRTSOverheadEnd = System.currentTimeMillis();
             fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
         }
+
+        if (!changedClasses.isEmpty()) {
+            // there was some change so we need to add all tests that reach star, if any
+            affected.addAll(starTests);
+        }
+
         nonAffected.removeAll(affected);
         long end = System.currentTimeMillis();
         LOGGER.log(Level.FINEST, TIME_COMPUTING_NON_AFFECTED + (end - start));

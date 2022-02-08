@@ -2,6 +2,7 @@ package edu.illinois.starts.smethods;
 
 import org.ekstazi.asm.ClassReader;
 import org.ekstazi.util.FileUtil;
+import org.ekstazi.Names;
 
 import edu.illinois.starts.changelevel.Macros;
 
@@ -52,7 +53,7 @@ public class MethodLevelStaticDepsBuilder{
                                         .collect(Collectors.toList()));
 
         // find the methods that each method calls
-        findMethodsinvoked(classPaths);
+        findMethodsInvoked(classPaths);
 
         // suppose that test classes have Test in their class name
         Set<String> testClasses = new HashSet<>();
@@ -72,8 +73,27 @@ public class MethodLevelStaticDepsBuilder{
         // save into a txt file ".ekstazi/methods.txt"
         FileUtil.saveMap(test2methods, Macros.STARTS_ROOT_DIR_NAME, "methods.txt");
     }
+    
+    public static void findMethodsInvoked(Set<String> changedClassesPaths, Set<String> allClassesPaths){
+        File methodCache = new File(Names.TEST_PROJECT_PATH + "/" + Macros.STARTS_ROOT_DIR_NAME + "/" + 
+            Names.CHANGE_TYPES_DIR_NAME + "methods.txt");
+        if (methodCache.exists()){
+            // update dependency graph "methods.txt"
+            try{
+                methodName2MethodNames = FileUtil.readMap(Macros.STARTS_ROOT_DIR_NAME, "methods.txt");
+                methodName2MethodNames.keySet().removeAll(changedClassesPaths);
+                findMethodsInvoked(changedClassesPaths);
+            }catch(Exception e){
+                System.out.println("methods.txt not found");
+                throw new RuntimeException(e);
+            } 
+        }else{ 
+            // create new methods.txt
+            findMethodsInvoked(allClassesPaths);
+        }
+    }
 
-    public static void findMethodsinvoked(Set<String> classPaths){
+    public static void findMethodsInvoked(Set<String> classPaths){        
         for (String classPath : classPaths){
             try {
                 ClassReader classReader = new ClassReader(new FileInputStream(new File(classPath)));
@@ -108,6 +128,11 @@ public class MethodLevelStaticDepsBuilder{
                     }
                 }
             }
+        }
+        try {
+            FileUtil.saveMap(methodName2MethodNames, Macros.STARTS_ROOT_DIR_NAME, "methods.txt");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
