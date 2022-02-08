@@ -4,11 +4,9 @@
 
 package edu.illinois.starts.helpers;
 
-import edu.illinois.starts.util.Macros;
+import edu.illinois.starts.changelevel.Macros;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
 
 /**
  * File handling utility methods.
@@ -44,31 +42,6 @@ public class FileUtil {
         }
         sb.append("ser");
         return System.getProperty("user.dir") + "/" + Macros.STARTS_ROOT_DIR_NAME + "/" +
-                Macros.CHANGE_TYPES_DIR_NAME + "/" + sb.toString();
-    }
-
-    /**
-     * Loads bytes of the given file.
-     *
-     * @return Bytes of the given file.
-     */
-    public static byte[] readFile(File file) throws IOException {
-        // Open file
-        RandomAccessFile f = new RandomAccessFile(file, "r");
-        try {
-            // Get and check length
-            long longlength = f.length();
-            int length = (int) longlength;
-            if (length != longlength) {
-                throw new IOException("File size >= 2 GB");
-            }
-            // Read file and return data
-            byte[] data = new byte[length];
-            f.readFully(data);
-            return data;
-        } finally {
-            // Close file
-            f.close();
-        }
+            org.ekstazi.Names.CHANGE_TYPES_DIR_NAME + "/" + sb.toString();
     }
 }

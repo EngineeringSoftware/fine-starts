@@ -51,7 +51,7 @@ public class DiffMojo extends BaseMojo implements StartsConstants {
     @Parameter(property = "saveMRTS", defaultValue = FALSE)
     protected boolean saveMRTSOn;
 
-    @Parameter(property = "mMultithread", defaultValue = FALSE)
+    @Parameter(property = "mMultithread", defaultValue = TRUE)
     protected boolean mMultithreadOn;
     /**
      * Set this to "true" to update test dependencies on disk. The default value of "false"

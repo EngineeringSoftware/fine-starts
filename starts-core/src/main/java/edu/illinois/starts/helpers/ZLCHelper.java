@@ -12,10 +12,6 @@ import edu.illinois.starts.util.Pair;
 import edu.illinois.starts.changelevel.StartsChangeTypes;
 import edu.illinois.starts.changelevel.FineTunedBytecodeCleaner;
 import static edu.illinois.starts.smethods.MethodLevelStaticDepsBuilder.*;
-import static edu.illinois.starts.util.Macros.CHANGE_TYPES_DIR_NAME;
-import static edu.illinois.starts.util.Macros.STARTS_ROOT_DIR_NAME;
-
-import org.ekstazi.asm.ClassReader;
 import org.ekstazi.util.Types;
 
 import java.io.File;
@@ -23,7 +19,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Level;
@@ -165,7 +160,7 @@ public class ZLCHelper implements StartsConstants {
                             try {
                                 File classFile = t.toFile();
                                 if (classFile.isFile()) {   
-                                    StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(org.ekstazi.util.FileUtil.readFile(
                                             classFile));
                                     String fileName = FileUtil.urlToSerFilePath(classFile.getAbsolutePath());
                                     StartsChangeTypes.toFile(fileName, curStartsChangeTypes);
@@ -238,7 +233,7 @@ public class ZLCHelper implements StartsConstants {
                                 File curClassFile = new File(stringURL.substring(stringURL.indexOf("/")));
                                 if (curClassFile.exists()) {
                                     StartsChangeTypes preStartsChangeTypes = StartsChangeTypes.fromFile(fileName);
-                                    curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                                    curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(org.ekstazi.util.FileUtil.readFile(
                                             curClassFile));
                                     if (preStartsChangeTypes != null && preStartsChangeTypes.equals(curStartsChangeTypes)) {
                                         finertsChanged = false;
@@ -266,6 +261,7 @@ public class ZLCHelper implements StartsConstants {
                                     if (!initGraph) {
                                         long buildGraphStart = System.currentTimeMillis();
                                         // find the methods that each method calls
+                                        // read previous dependency graph
                                         findMethodsinvoked(newClassesPaths);
                                         long buildGraphEnd = System.currentTimeMillis();
                                         LOGGER.log(Level.FINEST, "FineSTARTSBuildGraph: " + (buildGraphEnd - buildGraphStart));                                       
@@ -355,7 +351,7 @@ public class ZLCHelper implements StartsConstants {
                     try {
                         long parseChangeTypeStart = System.currentTimeMillis();
                         File remainingFile = new File(remainingPath);      
-                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(FileUtil.readFile(
+                        StartsChangeTypes curStartsChangeTypes = FineTunedBytecodeCleaner.removeDebugInfo(org.ekstazi.util.FileUtil.readFile(
                                 remainingFile));
                         long parseChangeTypeEnd = System.currentTimeMillis();
                         parseChangeTypeTime += parseChangeTypeEnd - parseChangeTypeStart;

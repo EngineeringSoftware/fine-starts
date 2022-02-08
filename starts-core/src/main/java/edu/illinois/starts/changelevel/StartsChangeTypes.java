@@ -1,8 +1,7 @@
 package edu.illinois.starts.changelevel;
 
 import org.ekstazi.asm.ClassReader;
-
-import edu.illinois.starts.helpers.FileUtil;
+import org.ekstazi.util.FileUtil;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;

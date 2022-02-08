@@ -1,20 +1,21 @@
 package edu.illinois.starts.smethods;
 
 import org.ekstazi.asm.ClassReader;
+import org.ekstazi.util.FileUtil;
+
+import edu.illinois.starts.changelevel.Macros;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class MethodLevelStaticDepsBuilder{
@@ -64,12 +65,12 @@ public class MethodLevelStaticDepsBuilder{
 
         Map<String, Set<String>>  test2methods = getDepsSingleThread(testClasses);
 
-        saveMap(methodName2MethodNames, "graph.txt");
-        saveMap(hierarchy_parents, "hierarchy_parents.txt");
-        saveMap(hierarchy_children, "hierarchy_children.txt");
-        saveMap(class2ContainedMethodNames, "class2methods.txt");
+        FileUtil.saveMap(methodName2MethodNames, Macros.STARTS_ROOT_DIR_NAME, "graph.txt");
+        FileUtil.saveMap(hierarchy_parents, Macros.STARTS_ROOT_DIR_NAME, "hierarchy_parents.txt");
+        FileUtil.saveMap(hierarchy_children, Macros.STARTS_ROOT_DIR_NAME, "hierarchy_children.txt");
+        FileUtil.saveMap(class2ContainedMethodNames, Macros.STARTS_ROOT_DIR_NAME, "class2methods.txt");
         // save into a txt file ".ekstazi/methods.txt"
-        saveMap(test2methods, "methods.txt");
+        FileUtil.saveMap(test2methods, Macros.STARTS_ROOT_DIR_NAME, "methods.txt");
     }
 
     public static void findMethodsinvoked(Set<String> classPaths){
@@ -108,38 +109,6 @@ public class MethodLevelStaticDepsBuilder{
                 }
             }
         }
-    }
-
-    public static void saveMap(Map<String, Set<String>> mapToStore, String fileName) throws Exception {
-        File directory = new File(".starts");
-        directory.mkdir();
-
-        File txtFile = new File(directory, fileName);
-        PrintWriter pw = new PrintWriter(txtFile);
-
-        for (Map.Entry<String, Set<String>> en : mapToStore.entrySet()) {
-            String methodName = en.getKey();
-            //invokedMethods saved in csv format
-            String invokedMethods = String.join(",", mapToStore.get(methodName));
-            pw.println(methodName + " " + invokedMethods);
-            pw.println();
-        }
-        pw.flush();
-        pw.close();
-    }
-
-    public static void saveSet(Set<String> setToStore, String fileName) throws Exception {
-        File directory = new File(".starts");
-        directory.mkdir();
-
-        File txtFile = new File(directory, fileName);
-        PrintWriter pw = new PrintWriter(txtFile);
-
-        for (String s : setToStore) {
-            pw.println(s);
-        }
-        pw.flush();
-        pw.close();
     }
 
     public static Set<String> getDepsHelper(String testClass) {
