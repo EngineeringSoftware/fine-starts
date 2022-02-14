@@ -6,6 +6,7 @@ package edu.illinois.starts.helpers;
 
 import edu.illinois.starts.constants.StartsConstants;
 import edu.illinois.starts.data.ZLCData;
+import edu.illinois.starts.hotfile.HotFileHelper;
 import edu.illinois.starts.util.ChecksumUtil;
 import edu.illinois.starts.util.Logger;
 import edu.illinois.starts.util.Pair;
@@ -45,6 +46,7 @@ public class ZLCHelper implements StartsConstants {
     private static long fineRTSOverheadTime = 0;
     private static long methodAnalysisOverheadTime = 0;
     private static long changedMethodTime = 0;
+    private static long hotfileTime = 0;
     public ZLCHelper() {
         zlcDataMap = new HashMap<>();
     }
@@ -144,7 +146,7 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn, boolean mHotFileOn) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
         String space = WHITE_SPACE;
@@ -248,6 +250,22 @@ public class ZLCHelper implements StartsConstants {
                 String[] parts = line.split(space);
                 String stringURL = parts[0];
                 Set<String> tests = parts.length == 3 ? fromCSV(parts[2]) : new HashSet<String>();
+
+                // System.out.println("Affected: " + stringURL);
+                if (mHotFileOn){
+                    long hotfileStart = System.currentTimeMillis();
+                    if (HotFileHelper.hotFiles == null){
+                        HotFileHelper.hotFiles = HotFileHelper.getHotFiles(HotFileHelper.SIZE_HOTFILE);
+                        // System.out.println("Hot Files: " + HotFileHelper.hotFiles);
+                    }
+                    if (!HotFileHelper.hotFiles.contains(stringURL)){
+                        affected.addAll(tests);
+                        changedClasses.add(stringURL);
+                        continue;
+                    } 
+                    long hotfileEnd = System.currentTimeMillis();
+                    hotfileTime += hotfileEnd - hotfileStart;    
+                }
                 if (!initClassesPaths) {
                     // init
                     long findAllClassesStart = System.currentTimeMillis();
@@ -384,6 +402,7 @@ public class ZLCHelper implements StartsConstants {
         LOGGER.log(Level.FINEST, "FineSTARTSOverheadTime: " + (fineRTSOverheadTime - methodAnalysisOverheadTime));
         LOGGER.log(Level.FINEST, "FineSTARTSMethodAnalysisOverheadTime: " + methodAnalysisOverheadTime);
         LOGGER.log(Level.FINEST, "FineSTARTSChangedMethods: " + changedMethodTime);
+        LOGGER.log(Level.FINEST, "HotFileTime:" + hotfileTime);
         return new Pair<>(nonAffected, changedClasses);
     }
 
@@ -396,7 +415,7 @@ public class ZLCHelper implements StartsConstants {
         for (String mulUsedMethod: mlUsedMethods){
             mlUsedClasses.add(mulUsedMethod.split("#")[0]);
         }
-        Set<String> clModifiedClasses = clModifiedClassesMap.get(test);
+        Set<String> clModifiedClasses = clModifiedClassesMap.getOrDefault(test, new HashSet<>());
 //        System.out.println();
 //        System.out.println("mlUsedMethods: " + mlUsedClasses);
 //        System.out.println("clModifieldClasses: " + clModifiedClasses);
