@@ -41,6 +41,8 @@ public class ZLCHelper implements StartsConstants {
     private static HashMap<String, Set<String>> clModifiedClassesMap = new HashMap<>();
     private static Set<String> affectedLines = new HashSet<>();
     private static Set<String> changedClassesPaths = new HashSet<>();
+    private static Set<String> hotFileAffected = new HashSet<>();
+    private static Set<String> hotFileChangedClasses = new HashSet<>();
     private static long shouldTestRunTime = 0;
     private static long parseChangeTypeTime = 0;
     private static long fineRTSOverheadTime = 0;
@@ -146,7 +148,7 @@ public class ZLCHelper implements StartsConstants {
         return zlcData;
     }
 
-    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn, boolean mHotFileOn) {
+    public static Pair<Set<String>, Set<String>> getChangedData(String artifactsDir, boolean cleanBytes, boolean fineRTSOn, boolean mRTSOn, boolean saveMRTSOn, boolean mMultithreadOn, boolean hotFileOn, String hotFileType, String hotFilePercent) {
         long start = System.currentTimeMillis();
         File zlc = new File(artifactsDir, zlcFile);
         String space = WHITE_SPACE;
@@ -252,17 +254,23 @@ public class ZLCHelper implements StartsConstants {
                 Set<String> tests = parts.length == 3 ? fromCSV(parts[2]) : new HashSet<String>();
 
                 // System.out.println("Affected: " + stringURL);
-                if (mHotFileOn){
+                if (hotFileOn){
                     long hotfileStart = System.currentTimeMillis();
                     if (HotFileHelper.hotFiles == null){
-                        HotFileHelper.hotFiles = HotFileHelper.getHotFiles(HotFileHelper.SIZE_HOTFILE);
+                        HotFileHelper.hotFiles = HotFileHelper.getHotFiles(hotFileType, hotFilePercent);
                         // System.out.println("Hot Files: " + HotFileHelper.hotFiles);
                     }
                     if (!HotFileHelper.hotFiles.contains(stringURL)){
-                        affected.addAll(tests);
-                        changedClasses.add(stringURL);
+                        // System.out.println(stringURL + " is not in hot file");
+                        // affected.addAll(tests);
+                        // changedClasses.add(stringURL);
+                        hotFileAffected.addAll(tests);
+                        hotFileChangedClasses.add(stringURL);
                         continue;
-                    } 
+                    }
+                    // else{
+                    //     System.out.println(stringURL + " is in hot file");
+                    // }
                     long hotfileEnd = System.currentTimeMillis();
                     hotfileTime += hotfileEnd - hotfileStart;    
                 }
@@ -338,7 +346,7 @@ public class ZLCHelper implements StartsConstants {
             }
             long fineRTSOverheadEnd = System.currentTimeMillis();
             fineRTSOverheadTime += fineRTSOverheadEnd - fineRTSOverheadStart;
-            if (mRTSOn) {
+            if (mRTSOn && affected.size() > 0) {
                 // get test to methods mapping with multi threading
                 long test2methodsStart = System.currentTimeMillis();
                 Set<String> affectedSplitWithSlash = new HashSet<>();
@@ -360,6 +368,10 @@ public class ZLCHelper implements StartsConstants {
                 methodAnalysisOverheadTime += shouldTestRunEnd - shouldTestRunStart + test2methodsEnd - test2methodsStart;
             }
 //            System.out.println("affected: " + affected);
+            if (hotFileOn){
+                affected.addAll(hotFileAffected);
+                changedClasses.addAll(hotFileChangedClasses);
+            }
             fineRTSOverheadStart = System.currentTimeMillis();
             if (allClassesPaths.size() != 0) {
                 allClassesPaths.removeAll(oldClassesPaths);

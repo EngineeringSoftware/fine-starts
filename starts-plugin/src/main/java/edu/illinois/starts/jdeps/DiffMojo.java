@@ -54,8 +54,14 @@ public class DiffMojo extends BaseMojo implements StartsConstants {
     @Parameter(property = "mMultithread", defaultValue = TRUE)
     protected boolean mMultithreadOn;
 
-    @Parameter(property = "mHotFile", defaultValue = FALSE)
-    protected boolean mHotFileOn;
+    @Parameter(property = "hotFile", defaultValue = FALSE)
+    protected boolean hotFileOn;
+
+    @Parameter(property = "hotFileType", defaultValue = "size")
+    protected String hotFileType;
+
+    @Parameter(property = "hotFilePercent", defaultValue = "50")
+    protected String hotFilePercent;
     /**
      * Set this to "true" to update test dependencies on disk. The default value of "false"
      * is useful for "dry runs" where one may want to see the diff without updating
@@ -88,7 +94,7 @@ public class DiffMojo extends BaseMojo implements StartsConstants {
         Pair<Set<String>, Set<String>> data = null;
         if (depFormat == DependencyFormat.ZLC) {
             ZLCHelper zlcHelper = new ZLCHelper();
-            data = zlcHelper.getChangedData(getArtifactsDir(), cleanBytes, fineRTSOn, mRTSOn, saveMRTSOn, mMultithreadOn, mHotFileOn);
+            data = zlcHelper.getChangedData(getArtifactsDir(), cleanBytes, fineRTSOn, mRTSOn, saveMRTSOn, mMultithreadOn, hotFileOn, hotFileType, hotFilePercent);
         } else if (depFormat == DependencyFormat.CLZ) {
             data = EkstaziHelper.getNonAffectedTests(getArtifactsDir());
         }

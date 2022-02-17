@@ -14,18 +14,18 @@ import static java.util.Collections.reverseOrder;
 
 public class HotFileHelper {
 
-    public static final int DEP_HOTFILE = 0;
-    public static final int CHANGE_FRE_HOTFILE = 1;
-    public static final int SIZE_HOTFILE = 2;
+    public static final String DEP_HOTFILE = "dep";
+    public static final String CHANGE_FRE_HOTFILE = "freq";
+    public static final String SIZE_HOTFILE = "size";
     public static List<String> hotFiles;
 
-    public static List<String> getHotFiles(int type) {
+    public static List<String> getHotFiles(String hotFileType, String percentage) {
         List<String> hotFiles = new ArrayList<>();
-        if (type == DEP_HOTFILE) {
+        if (hotFileType.equals(DEP_HOTFILE)) {
+            
+        } else if (hotFileType.equals(CHANGE_FRE_HOTFILE)) {
 
-        } else if (type == CHANGE_FRE_HOTFILE) {
-
-        } else if (type == SIZE_HOTFILE) {
+        } else if (hotFileType.equals(SIZE_HOTFILE)) {
             HashMap<String, Long> fileToSize = new HashMap<>();
             // check all the classes
             try {
@@ -47,8 +47,9 @@ public class HotFileHelper {
                     .sorted(reverseOrder(Entry.comparingByValue()))
                     .collect(Collectors.toMap(Entry::getKey, Entry::getValue,
                             (e1, e2) -> e1, LinkedHashMap::new));
-            // get the top 30% of the files
-            int topSize = (int) (sortedFileToSize.size() * 0.5);
+            // get the top percentage of the files
+            double percentageDouble = Double.parseDouble(percentage)/100.0;
+            int topSize = (int) (sortedFileToSize.size() * percentageDouble);
             for (int i = 0; i < topSize; i++) {
                 hotFiles.add(sortedFileToSize.keySet().toArray()[i].toString());
             }
@@ -57,7 +58,7 @@ public class HotFileHelper {
     }
 
     public static void main(String[] args) {
-        hotFiles = getHotFiles(SIZE_HOTFILE);
+        hotFiles = getHotFiles(SIZE_HOTFILE, "50");
         hotFiles.forEach(System.out::println);
     }
 }
