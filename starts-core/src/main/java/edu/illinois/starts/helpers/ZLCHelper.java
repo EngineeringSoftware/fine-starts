@@ -257,7 +257,7 @@ public class ZLCHelper implements StartsConstants {
                 if (hotFileOn){
                     long hotfileStart = System.currentTimeMillis();
                     if (HotFileHelper.hotFiles == null){
-                        HotFileHelper.hotFiles = HotFileHelper.getHotFiles(hotFileType, hotFilePercent);
+                        HotFileHelper.hotFiles = HotFileHelper.getHotFiles(hotFileType, hotFilePercent, artifactsDir, zlcFile);
                         // System.out.println("Hot Files: " + HotFileHelper.hotFiles);
                     }
                     if (!HotFileHelper.hotFiles.contains(stringURL)){
