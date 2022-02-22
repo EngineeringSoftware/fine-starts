@@ -1,17 +1,17 @@
 package edu.illinois.starts.hotfile;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.nio.file.Paths;
@@ -46,7 +46,36 @@ public class HotFileHelper {
                 throw new RuntimeException(e);
             }
         } else if (hotFileType.equals(CHANGE_FRE_HOTFILE)) {
-
+            HashMap<String, Long> fileToFreq = new HashMap<>();
+            int numOfCommits = 50;
+            String command = "git log -" + String.valueOf(numOfCommits) + " --name-only --format=\"\"";
+            Runtime r = Runtime.getRuntime();
+            String[] commands = {"bash", "-c", command};
+            try {
+                Process p = r.exec(commands);
+        
+                p.waitFor();
+                BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                String line = "";
+        
+                while ((line = b.readLine()) != null) {
+                    if (line.length() > 0 && line.endsWith(".java")) {
+                        String[] lineArray = line.split("/");
+                        String fileName = lineArray[lineArray.length - 1];
+                        fileName = fileName.substring(0, fileName.length() - ".java".length());
+                        if (fileToFreq.containsKey(fileName)) {
+                            fileToFreq.put(fileName, fileToFreq.get(fileName) + 1);
+                        } else {
+                            fileToFreq.put(fileName, 1L);
+                        }
+                    }
+                }
+                b.close();
+            } catch (Exception e) {
+                System.err.println("Failed to execute bash with command: " + command);
+                e.printStackTrace();
+            }
+            return sortAndExtract(fileToFreq, percentage);
         } else if (hotFileType.equals(SIZE_HOTFILE)) {
             HashMap<String, Long> fileToSize = new HashMap<>();
             // check all the classes

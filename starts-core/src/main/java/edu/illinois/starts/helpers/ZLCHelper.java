@@ -258,15 +258,34 @@ public class ZLCHelper implements StartsConstants {
                     long hotfileStart = System.currentTimeMillis();
                     if (HotFileHelper.hotFiles == null){
                         HotFileHelper.hotFiles = HotFileHelper.getHotFiles(hotFileType, hotFilePercent, artifactsDir, zlcFile);
-                        // System.out.println("Hot Files: " + HotFileHelper.hotFiles);
                     }
-                    if (!HotFileHelper.hotFiles.contains(stringURL)){
-                        // System.out.println(stringURL + " is not in hot file");
-                        // affected.addAll(tests);
-                        // changedClasses.add(stringURL);
-                        hotFileAffected.addAll(tests);
-                        hotFileChangedClasses.add(stringURL);
-                        continue;
+                    if (hotFileType.equals(HotFileHelper.CHANGE_FRE_HOTFILE)){
+                        String[] stringURLParts = stringURL.split("/");
+                        String className = stringURLParts[stringURLParts.length - 1].replace(".class", "");
+                        if (className.contains("\\$")){
+                            className= className.split("\\$")[0];
+                        }
+                        boolean isHotFile = false;
+                        for (String hotFile : HotFileHelper.hotFiles){
+                            if (className.equals(hotFile)){
+                                hotFileAffected.addAll(tests);
+                                hotFileChangedClasses.add(stringURL);
+                                isHotFile = true;
+                                break;
+                            }
+                        }
+                        if (isHotFile){
+                            continue;
+                        }
+                    }else{
+                        if (!HotFileHelper.hotFiles.contains(stringURL)){
+                            // System.out.println(stringURL + " is not in hot file");
+                            // affected.addAll(tests);
+                            // changedClasses.add(stringURL);
+                            hotFileAffected.addAll(tests);
+                            hotFileChangedClasses.add(stringURL);
+                            continue;
+                        }
                     }
                     // else{
                     //     System.out.println(stringURL + " is in hot file");
