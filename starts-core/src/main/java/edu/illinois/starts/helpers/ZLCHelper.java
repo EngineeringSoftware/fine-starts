@@ -262,7 +262,7 @@ public class ZLCHelper implements StartsConstants {
                     if (hotFileType.equals(HotFileHelper.CHANGE_FRE_HOTFILE)){
                         String[] stringURLParts = stringURL.split("/");
                         String className = stringURLParts[stringURLParts.length - 1].replace(".class", "");
-                        if (className.contains("\\$")){
+                        if (className.contains("$")){
                             className= className.split("\\$")[0];
                         }
                         boolean isHotFile = false;
